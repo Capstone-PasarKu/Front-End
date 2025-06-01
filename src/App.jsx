@@ -1,24 +1,36 @@
+import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Home from "./pages/Home";
-import About from "./pages/About";
 import Login from "./pages/Login";
-import Products from "./pages/Products";
 import Register from "./pages/Register";
 import Profile from "./pages/Profile";
+import DashboardToko from "./pages/DashboardToko";
+import QualityCheck from "./pages/QualityCheck";
+import About from "./pages/About";
+import Contact from "./pages/Contact";
+import Products from "./pages/Products";  
+import Footer from "./components/Footer";
 
 function App() {
   return (
     <Router>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/about" element={<About />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/profile" element={<Profile />} />
-      </Routes>
+      <div className="min-h-screen bg-gray-50">
+        <Navbar />
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/dashboard-toko/:id" element={<DashboardToko />} />
+          <Route path="/quality-check" element={<QualityCheck />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/products" element={<Products />} />
+          {/* Tambahkan route lainnya sesuai kebutuhan */}
+        </Routes>
+      </div>
+      <Footer />
     </Router>
   );
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FiEdit2, FiLogOut, FiUser, FiMail, FiKey, FiPhone, FiMapPin } from "react-icons/fi";
+import { FiEdit2, FiLogOut, FiUser, FiMail, FiKey, FiPhone, FiMapPin, FiCopy } from "react-icons/fi";
+import { getUserFromToken, addMerchant } from "../services/api";
 
 const Profile = () => {
   const [user, setUser] = useState(null);
@@ -9,28 +10,66 @@ const Profile = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedUser, setEditedUser] = useState(null);
   const [profileImage, setProfileImage] = useState("/src/assets/logo.jpeg");
+  const [showAddToko, setShowAddToko] = useState(false);
+  const [tokoForm, setTokoForm] = useState({ name: "", category: "", lat: "", lng: "", photo: null });
+  const [tokoError, setTokoError] = useState("");
+  const [tokoSuccess, setTokoSuccess] = useState("");
+  const [token, setToken] = useState("");
+  const [copySuccess, setCopySuccess] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-    // Decode JWT payload (base64) to get user info
-    try {
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      setUser(payload);
-      setEditedUser(payload);
-    } catch (e) {
-      setError("Gagal membaca data pengguna");
-    }
-    setLoading(false);
+    const fetchProfile = async () => {
+      const storedToken = localStorage.getItem("token");
+      if (!storedToken) {
+        navigate("/login");
+        return;
+      }
+
+      setToken(storedToken);
+
+      try {
+        // Decode token untuk mendapatkan data user
+        const userData = getUserFromToken(storedToken);
+        if (!userData) {
+          throw new Error("Token tidak valid");
+        }
+
+        // Set data user
+        setUser({
+          uid: userData.uid,
+          email: userData.email,
+          createdAt: new Date(userData.iat * 1000).toLocaleString(),
+          displayName: userData.displayName || "Pengguna",
+          role: userData.role || "user"
+        });
+        setEditedUser({
+          uid: userData.uid,
+          email: userData.email,
+          createdAt: new Date(userData.iat * 1000).toLocaleString(),
+          displayName: userData.displayName || "Pengguna",
+          role: userData.role || "user"
+        });
+      } catch (e) {
+        console.error("Error fetching profile:", e);
+        setError("Gagal membaca data pengguna");
+      }
+      setLoading(false);
+    };
+    fetchProfile();
   }, [navigate]);
 
   const handleLogout = () => {
     localStorage.removeItem("token");
+    // Dispatch custom event untuk logout
+    window.dispatchEvent(new Event('logout'));
     navigate("/login");
+  };
+
+  const handleSave = () => {
+    // Karena tidak ada endpoint untuk update profil, kita hanya update state lokal
+    setUser(editedUser);
+    setIsEditing(false);
   };
 
   const handleImageChange = (e) => {
@@ -44,10 +83,38 @@ const Profile = () => {
     }
   };
 
-  const handleSave = () => {
-    // Here you would typically make an API call to update the user data
-    setUser(editedUser);
-    setIsEditing(false);
+  const handleTokoChange = (e) => {
+    const { name, value, files } = e.target;
+    setTokoForm((prev) => ({
+      ...prev,
+      [name]: files ? files[0] : value,
+    }));
+  };
+
+  const handleAddToko = async (e) => {
+    e.preventDefault();
+    setTokoError("");
+    setTokoSuccess("");
+    try {
+      const token = localStorage.getItem("token");
+      const res = await addMerchant(token, tokoForm);
+      setTokoSuccess("Toko berhasil ditambahkan!");
+      setTokoForm({ name: "", category: "", lat: "", lng: "", photo: null });
+      setShowAddToko(false);
+      // Redirect ke dashboard toko baru
+      const merchantId = res.data?.id || res.id;
+      if (merchantId) {
+        navigate(`/dashboard-toko/${merchantId}`);
+      }
+    } catch (err) {
+      setTokoError("Gagal menambah toko");
+    }
+  };
+
+  const handleCopyToken = () => {
+    navigator.clipboard.writeText(token);
+    setCopySuccess("Token berhasil disalin!");
+    setTimeout(() => setCopySuccess(""), 2000);
   };
 
   if (loading) {
@@ -69,7 +136,7 @@ const Profile = () => {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-100 to-green-300 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-[#F5F5DC] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
           {/* Header Section */}
@@ -132,12 +199,12 @@ const Profile = () => {
                     {isEditing ? (
                       <input
                         type="text"
-                        value={editedUser.name || ""}
-                        onChange={(e) => setEditedUser({ ...editedUser, name: e.target.value })}
+                        value={editedUser.displayName || ""}
+                        onChange={(e) => setEditedUser({ ...editedUser, displayName: e.target.value })}
                         className="border rounded-lg px-3 py-2 w-full"
                       />
                     ) : (
-                      <p className="font-semibold">{user.name || "Belum diisi"}</p>
+                      <p className="font-semibold">{user.displayName || "Belum diisi"}</p>
                     )}
                   </div>
                 </div>
@@ -153,8 +220,40 @@ const Profile = () => {
                 <div className="flex items-center gap-3">
                   <FiKey className="w-6 h-6 text-green-600" />
                   <div>
-                    <p className="text-sm text-gray-500">User ID</p>
-                    <p className="font-semibold">{user.uid}</p>
+                    <p className="text-sm text-gray-500">Role</p>
+                    <p className="font-semibold">{user.role || "-"}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className="w-6 h-6 text-green-600 font-bold text-lg">⏰</span>
+                  <div>
+                    <p className="text-sm text-gray-500">Dibuat</p>
+                    <p className="font-semibold">{user.createdAt}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <FiKey className="w-6 h-6 text-green-600 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-500 mb-1">Token</p>
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-mono text-xs bg-gray-100 p-2 rounded break-all">
+                          {token}
+                        </p>
+                      </div>
+                      <button
+                        onClick={handleCopyToken}
+                        className="bg-green-600 text-white p-2 rounded hover:bg-green-700 transition-colors flex-shrink-0"
+                        title="Salin token"
+                      >
+                        <FiCopy />
+                      </button>
+                    </div>
+                    {copySuccess && (
+                      <p className="text-green-600 text-sm mt-1">{copySuccess}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -195,6 +294,59 @@ const Profile = () => {
                 </div>
               </div>
             </div>
+
+            {/* Tombol tambah toko */}
+            <div className="my-4">
+              <button
+                onClick={() => setShowAddToko(true)}
+                className="bg-green-700 text-white px-6 py-2 rounded-lg hover:bg-green-800 transition"
+              >
+                + Tambah Toko
+              </button>
+            </div>
+            {/* Modal/Form tambah toko */}
+            {showAddToko && (
+              <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+                <form
+                  onSubmit={handleAddToko}
+                  className="bg-white p-8 rounded-xl shadow-xl w-full max-w-md relative"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setShowAddToko(false)}
+                    className="absolute top-2 right-2 text-gray-500 hover:text-red-600 text-xl"
+                  >
+                    ×
+                  </button>
+                  <h3 className="text-xl font-bold mb-4 text-green-700">Tambah Toko</h3>
+                  <div className="mb-3">
+                    <label className="block mb-1 font-medium">Nama Toko</label>
+                    <input type="text" name="name" value={tokoForm.name} onChange={handleTokoChange} required className="w-full border rounded px-3 py-2" />
+                  </div>
+                  <div className="mb-3">
+                    <label className="block mb-1 font-medium">Kategori</label>
+                    <input type="text" name="category" value={tokoForm.category} onChange={handleTokoChange} required className="w-full border rounded px-3 py-2" />
+                  </div>
+                  <div className="mb-3 flex gap-2">
+                    <div className="flex-1">
+                      <label className="block mb-1 font-medium">Latitude</label>
+                      <input type="text" name="lat" value={tokoForm.lat} onChange={handleTokoChange} required className="w-full border rounded px-3 py-2" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block mb-1 font-medium">Longitude</label>
+                      <input type="text" name="lng" value={tokoForm.lng} onChange={handleTokoChange} required className="w-full border rounded px-3 py-2" />
+                    </div>
+                  </div>
+                  <div className="mb-3">
+                    <label className="block mb-1 font-medium">Foto (opsional)</label>
+                    <input type="file" name="photo" accept="image/*" onChange={handleTokoChange} className="w-full" />
+                  </div>
+                  {tokoError && <div className="text-red-600 mb-2 text-sm">{tokoError}</div>}
+                  {tokoSuccess && <div className="text-green-700 mb-2 text-sm">{tokoSuccess}</div>}
+                  <button type="submit" className="w-full bg-green-700 text-white py-2 rounded-lg hover:bg-green-800 font-bold mt-2">Simpan</button>
+                </form>
+              </div>
+            )}
           </div>
         </div>
       </div>

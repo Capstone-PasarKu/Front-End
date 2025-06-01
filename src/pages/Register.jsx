@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { registerUser } from "../services/api";
+import { FiMail, FiLock, FiUser } from "react-icons/fi";
 
 const Register = () => {
   const [form, setForm] = useState({ name: "", email: "", password: "" });
@@ -30,7 +31,7 @@ const Register = () => {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen bg-gradient-to-br from-green-100 to-green-300">
+    <div className="flex justify-center items-center min-h-screen bg-[#F5F5DC]">
       <form
         onSubmit={handleSubmit}
         className="bg-white p-8 rounded-2xl shadow-xl w-full max-w-md border-t-4 border-green-600 animate-fade-in"
@@ -55,15 +56,21 @@ const Register = () => {
           >
             Nama Lengkap
           </label>
-          <input
-            id="name"
-            type="text"
-            name="name"
-            value={form.name}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-3 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-          />
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FiUser className="h-5 w-5 text-green-600" />
+            </div>
+            <input
+              id="name"
+              type="text"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              required
+              className="w-full pl-10 px-4 py-3 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+              placeholder="Masukkan nama lengkap Anda"
+            />
+          </div>
         </div>
         <div className="mb-4">
           <label
@@ -72,15 +79,21 @@ const Register = () => {
           >
             Email
           </label>
-          <input
-            id="email"
-            type="email"
-            name="email"
-            value={form.email}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-3 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-          />
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FiMail className="h-5 w-5 text-green-600" />
+            </div>
+            <input
+              id="email"
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              required
+              className="w-full pl-10 px-4 py-3 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+              placeholder="Masukkan email Anda"
+            />
+          </div>
         </div>
         <div className="mb-6">
           <label
@@ -89,15 +102,21 @@ const Register = () => {
           >
             Password
           </label>
-          <input
-            id="password"
-            type="password"
-            name="password"
-            value={form.password}
-            onChange={handleChange}
-            required
-            className="w-full px-4 py-3 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 transition"
-          />
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FiLock className="h-5 w-5 text-green-600" />
+            </div>
+            <input
+              id="password"
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              required
+              className="w-full pl-10 px-4 py-3 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+              placeholder="Masukkan password Anda"
+            />
+          </div>
         </div>
         <button
           type="submit"
