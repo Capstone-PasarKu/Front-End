@@ -44,21 +44,22 @@ const QualityCheck = () => {
       }
 
       const formData = new FormData();
-      formData.append("image", selectedFile);
+      formData.append("file", selectedFile); // <== Ganti 'image' ke 'file'
 
-      const response = await fetch("https://pasarku-backend.vercel.app/api/quality-check", {
+      const response = await fetch("http://127.0.0.1:8000/predict", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${token}`
+          Authorization: `Bearer ${token}`, // opsional jika FastAPI tidak menggunakan OAuth2
         },
         body: formData,
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Gagal menganalisis kualitas produk");
+        throw new Error(data?.error || "Gagal menganalisis kualitas produk");
       }
 
-      const data = await response.json();
       setResult(data);
     } catch (err) {
       setError(err.message);
@@ -104,7 +105,9 @@ const QualityCheck = () => {
                   <FiUpload className="w-12 h-12 text-gray-400 mb-4" />
                 )}
                 <span className="text-gray-600">
-                  {preview ? "Klik untuk mengganti foto" : "Klik untuk memilih foto"}
+                  {preview
+                    ? "Klik untuk mengganti foto"
+                    : "Klik untuk memilih foto"}
                 </span>
               </label>
             </div>
@@ -127,43 +130,68 @@ const QualityCheck = () => {
 
           {/* Error Message */}
           {error && (
-            <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-8 flex items-center">
-              <FiAlertCircle className="w-5 h-5 mr-2" />
-              {error}
-            </div>
-          )}
-
-          {/* Result Section */}
-          {result && (
-            <div className="bg-green-50 rounded-lg p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                Hasil Analisis
-              </h2>
-              <div className="space-y-4">
-                <div className="flex items-center">
-                  <FiCheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                  <span className="text-gray-700">
-                    Kualitas: {result.quality}
-                  </span>
-                </div>
-                <div className="flex items-center">
-                  <FiInfo className="w-5 h-5 text-blue-600 mr-2" />
-                  <span className="text-gray-700">
-                    Rekomendasi: {result.recommendation}
-                  </span>
+            <div className="mb-8">
+              <div className="flex items-start gap-3 p-4 rounded-lg border border-red-200 bg-red-50 text-red-800 shadow-sm">
+                <FiAlertCircle className="w-6 h-6 mt-0.5" />
+                <div>
+                  <p className="font-semibold">Terjadi Kesalahan</p>
+                  <p className="text-sm">{error}</p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Info Section */}
+          {/* Result Message */}
+          {result && (
+            <div
+              className={`rounded-xl p-6 shadow-md ${
+                result.label === "layak"
+                  ? "bg-green-50 border border-green-200"
+                  : "bg-red-50 border border-red-200"
+              }`}
+            >
+              <h2
+                className={`text-2xl font-bold mb-4 flex items-center gap-2 ${
+                  result.label === "layak" ? "text-green-800" : "text-red-800"
+                }`}
+              >
+                <FiCheckCircle className="w-6 h-6" />
+                Hasil Analisis
+              </h2>
+              <div className="space-y-3 text-gray-800 text-base">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">📦 Kategori:</span>
+                  <span>{result.category}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">🏷️ Label:</span>
+                  <span
+                    className={`font-semibold ${
+                      result.label === "layak"
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {result.label}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">🔍 Confidence:</span>
+                  <span>{(result.confidence * 100).toFixed(2)}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Info Section
           <div className="mt-8 bg-blue-50 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-2">
               Cara Kerja
             </h3>
             <p className="text-gray-600">
-              Sistem kami menggunakan teknologi Machine Learning untuk menganalisis foto produk Anda. 
-              Kami akan memeriksa berbagai aspek seperti:
+              Sistem kami menggunakan teknologi Machine Learning untuk
+              menganalisis foto produk Anda. Kami akan memeriksa berbagai aspek
+              seperti:
             </p>
             <ul className="list-disc list-inside text-gray-600 mt-2 space-y-1">
               <li>Kesegaran produk</li>
@@ -171,11 +199,11 @@ const QualityCheck = () => {
               <li>Kualitas visual</li>
               <li>Kesesuaian standar pasar</li>
             </ul>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
   );
 };
 
-export default QualityCheck; 
+export default QualityCheck;
