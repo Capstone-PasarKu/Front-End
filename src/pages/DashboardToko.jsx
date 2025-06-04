@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { FiPackage, FiDollarSign, FiUsers, FiStar, FiEdit2, FiPlus } from "react-icons/fi";
+import { getDashboardToko, getMerchantItems } from "../services/api"; 
 
 const DashboardToko = () => {
-  const { id } = useParams();
+  const { id } = useParams(); // Ambil merchantId dari URL
   const [merchant, setMerchant] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -12,66 +13,80 @@ const DashboardToko = () => {
     totalProducts: 0,
     totalOrders: 0,
     totalRevenue: 0,
-    averageRating: 0
+    averageRating: 0,
   });
 
-  // useEffect(() => {
-  //   const fetchMerchantData = async () => {
-  //     try {
-  //       const token = localStorage.getItem("token");
-  //       if (!token) throw new Error("Token tidak ditemukan");
+  // Ambil data dashboard toko dan daftar barang saat komponen dimuat
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        console.log("Fetching data with token:", token, "and merchantId:", id); // Debug token dan id
 
-  //       // Fetch merchant details
-  //       const merchantRes = await fetch(`https://pasarku-backend.vercel.app/api/merchants/${id}`, {
-  //         headers: { Authorization: `Bearer ${token}` }
-  //       });
-  //       if (!merchantRes.ok) throw new Error("Gagal mengambil data toko");
-  //       const merchantData = await merchantRes.json();
-  //       setMerchant(merchantData);
+        if (!token) {
+          throw new Error("Token tidak ditemukan. Silakan login kembali.");
+        }
 
-  //       // Fetch merchant products
-  //       const productsRes = await fetch(`https://pasarku-backend.vercel.app/api/merchants/${id}/products`, {
-  //         headers: { Authorization: `Bearer ${token}` }
-  //       });
-  //       if (!productsRes.ok) throw new Error("Gagal mengambil data produk");
-  //       const productsData = await productsRes.json();
-  //       setProducts(productsData);
+        // Panggil getDashboardToko untuk statistik dan topProducts
+        const dashboardData = await getDashboardToko(token, id);
+        console.log("Dashboard API Response:", dashboardData); // Debug respons dashboard
 
-  //       // Calculate stats
-  //       setStats({
-  //         totalProducts: productsData.length,
-  //         totalOrders: merchantData.total_orders || 0,
-  //         totalRevenue: merchantData.total_revenue || 0,
-  //         averageRating: merchantData.average_rating || 0
-  //       });
+        // Perbarui state stats berdasarkan respons getDashboardToko
+        setMerchant(dashboardData.merchant || {});
+        setStats({
+          totalProducts: dashboardData.topProducts?.length || 0, // Jumlah produk dari topProducts
+          totalOrders: (dashboardData.ordersByStatus?.completed || 0) + (dashboardData.ordersByStatus?.pending || 0), // Total pesanan
+          totalRevenue: dashboardData.totalSales || 0, // Total pendapatan
+          averageRating: 0, // Rating belum ada di respons, tetap 0
+        });
 
-  //     } catch (err) {
-  //       setError(err.message);
-  //     } finally {
-  //       setLoading(false);
-  //     }
-  //   };
+        // Panggil getMerchantItems untuk daftar barang
+        const itemsData = await getMerchantItems(token, id);
+        console.log("Items API Response:", itemsData); // Debug respons items
 
-  //   fetchMerchantData();
-  // }, [id]);
+        // Gabungkan data dari topProducts dan getMerchantItems berdasarkan nama
+        const topProducts = dashboardData.topProducts || [];
+        const formattedProducts = Array.isArray(itemsData)
+          ? itemsData.map(item => {
+              const topProduct = topProducts.find(tp => tp.item.toLowerCase() === item.name.toLowerCase());
+              return {
+                id: item.id,
+                name: item.name,
+                category: item.category || "",
+                price: item.basePrice || 0,
+                stock: topProduct ? topProduct.totalQuantity : 0, // Ambil stock dari totalQuantity
+                is_active: true, // Asumsi aktif, sesuaikan jika ada data status
+                image_url: item.image_url || "https://via.placeholder.com/40" // Placeholder image
+              };
+            })
+          : [];
+        setProducts(formattedProducts);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError("Gagal memuat data: " + err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  // if (loading) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-  //       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600"></div>
-  //     </div>
-  //   );
-  // }
+    fetchData();
+  }, [id]);
 
-  // if (error) {
-  //   return (
-  //     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-  //       <div className="bg-red-50 text-red-700 p-4 rounded-lg">
-  //         {error}
-  //       </div>
-  //     </div>
-  //   );
-  // }
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-[#F5F5DC]">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-green-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-[#F5F5DC]">
+        <div className="bg-white p-6 rounded-2xl shadow-xl text-red-600">{error}</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#F5F5DC] py-8">
@@ -80,8 +95,8 @@ const DashboardToko = () => {
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{merchant?.name}</h1>
-              <p className="text-gray-600">{merchant?.category}</p>
+              <h1 className="text-2xl font-bold text-gray-900">{merchant?.name || "Nama Toko Kosong"}</h1>
+              <p className="text-gray-600">{merchant?.category || "Kategori Kosong"}</p>
             </div>
             <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
               <FiEdit2 className="mr-2" />
@@ -205,11 +220,13 @@ const DashboardToko = () => {
                       <div className="text-sm text-gray-900">{product.stock}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                        product.is_active
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}>
+                      <span
+                        className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          product.is_active
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
                         {product.is_active ? "Aktif" : "Nonaktif"}
                       </span>
                     </td>
