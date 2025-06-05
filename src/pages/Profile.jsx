@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  FiEdit2,
   FiLogOut,
   FiUser,
   FiMail,
@@ -10,16 +9,14 @@ import {
   FiMapPin,
   FiCopy,
 } from "react-icons/fi";
-import { getUserFromToken, addMerchant } from "../services/api";
-import L from "leaflet"; // Import Leaflet
-import "leaflet/dist/leaflet.css"; // Import Leaflet CSS
+import { getUserFromToken, getProfile, addMerchant } from "../services/api";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const Profile = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedUser, setEditedUser] = useState(null);
   const [profileImage, setProfileImage] = useState("/src/assets/logo.jpeg");
   const [showAddToko, setShowAddToko] = useState(false);
   const [tokoForm, setTokoForm] = useState({
@@ -44,42 +41,53 @@ const Profile = () => {
       }
 
       setToken(storedToken);
+      setLoading(true);
+      setError("");
 
       try {
+        // Decode token
         const userData = getUserFromToken(storedToken);
         if (!userData) {
-          throw new Error("Token tidak valid");
+          throw new Error("Token tidak valid atau kedaluwarsa");
+        }
+        console.log("Token user data:", userData); // Debug token payload
+
+        // Fetch profile from backend
+        let profileData = {};
+        try {
+          profileData = await getProfile(storedToken);
+          console.log("Profile API response:", profileData); // Debug API response
+        } catch (e) {
+          console.warn("Failed to fetch profile from API:", e.message);
+          // Continue with token data if API fails
         }
 
-        setUser({
-          uid: userData.uid,
-          email: userData.email,
+        // Merge data, prioritize token email
+        const mergedUserData = {
+          uid: userData.uid || userData.sub || "unknown",
+          email: userData.email || profileData.email || "Email tidak tersedia",
           createdAt: new Date(userData.iat * 1000).toLocaleString(),
-          displayName: userData.displayName || "Pengguna",
-          role: userData.role || "user",
-        });
-        setEditedUser({
-          uid: userData.uid,
-          email: userData.email,
-          createdAt: new Date(userData.iat * 1000).toLocaleString(),
-          displayName: userData.displayName || "Pengguna",
-          role: userData.role || "user",
-        });
+          displayName: profileData.name || userData.displayName || userData.name || "Pengguna",
+          role: userData.role || profileData.role || "user",
+          phone: profileData.phoneNumber || profileData.phone || "",
+          address: profileData.address || "",
+        };
+
+        setUser(mergedUserData);
       } catch (e) {
         console.error("Error fetching profile:", e);
-        setError("Gagal membaca data pengguna");
+        setError("Gagal membaca data pengguna: " + e.message);
       }
       setLoading(false);
     };
     fetchProfile();
   }, [navigate]);
 
-  // Initialize Leaflet map when showAddToko is true
   useEffect(() => {
     let map, marker;
     if (showAddToko) {
       const initialLatLng = [-2.972545, 104.774436];
-      map = L.map("map").setView(initialLatLng, 20);
+      map = L.map("map").setView(initialLatLng, 13);
 
       L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
@@ -87,9 +95,16 @@ const Profile = () => {
           '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(map);
 
+      // Fix Leaflet icon issue
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+      });
+
       marker = L.marker(initialLatLng, { draggable: true }).addTo(map);
 
-      // Update form inputs on marker drag
       marker.on("dragend", function (event) {
         const position = event.target.getLatLng();
         setTokoForm((prev) => ({
@@ -99,7 +114,6 @@ const Profile = () => {
         }));
       });
 
-      // Update form inputs and move marker on map click
       map.on("click", function (e) {
         const { lat, lng } = e.latlng;
         marker.setLatLng([lat, lng]);
@@ -111,7 +125,6 @@ const Profile = () => {
       });
     }
 
-    // Cleanup map on unmount or when form is closed
     return () => {
       if (map) {
         map.remove();
@@ -123,11 +136,6 @@ const Profile = () => {
     localStorage.removeItem("token");
     window.dispatchEvent(new Event("logout"));
     navigate("/login");
-  };
-
-  const handleSave = () => {
-    setUser(editedUser);
-    setIsEditing(false);
   };
 
   const handleImageChange = (e) => {
@@ -156,9 +164,8 @@ const Profile = () => {
 
     try {
       const storedToken = localStorage.getItem("token");
-      console.log(storedToken);
+      if (!storedToken) throw new Error("Token tidak ditemukan");
 
-      // Validasi data sebelum mengirim
       if (
         !tokoForm.name ||
         !tokoForm.category ||
@@ -168,31 +175,30 @@ const Profile = () => {
         throw new Error("Semua field wajib diisi kecuali foto");
       }
 
-      // Ubah 'lon' menjadi 'lng' untuk sesuai dengan endpoint
       const merchantData = {
         name: tokoForm.name,
         category: tokoForm.category,
         lat: tokoForm.lat,
-        lng: tokoForm.lon, // Ganti 'lon' ke 'lng'
+        lng: tokoForm.lon,
         photo: tokoForm.photo,
       };
 
-      console.log("Sending merchant data:", merchantData); // Debug data yang dikirim
-
+      console.log("Sending merchant data:", merchantData);
       const result = await addMerchant(storedToken, merchantData);
-      console.log("API Response:", result); // Debug respons API
+      console.log("API Response:", result);
 
       setTokoSuccess("Toko berhasil ditambahkan!");
       setTokoForm({ name: "", category: "", lat: "", lon: "", photo: null });
       setShowAddToko(false);
-      const merchantId = result.data?.id || result.id || result.merchantId; // Lebih fleksibel
+
+      const merchantId = result.data?.id || result.id || result.merchantId;
       if (merchantId) {
         navigate(`/dashboard-toko/${merchantId}`);
       } else {
         throw new Error("ID toko tidak ditemukan dalam respons");
       }
     } catch (err) {
-      console.error("Error adding merchant:", err); // Debug error
+      console.error("Error adding merchant:", err);
       setTokoError("Gagal menambah toko: " + (err.message || "Unknown error"));
     }
   };
@@ -221,13 +227,17 @@ const Profile = () => {
     );
   }
 
-  if (!user) return null;
+  if (!user) {
+    console.log("User state is null");
+    return null;
+  }
+
+  console.log("Rendering user state:", user); // Debug user state
 
   return (
     <div className="min-h-screen bg-[#F5F5DC] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto">
         <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-          {/* Header Section */}
           <div className="relative h-32 bg-green-600">
             <div className="absolute -bottom-16 left-8">
               <div className="relative">
@@ -236,41 +246,16 @@ const Profile = () => {
                   alt="Profile"
                   className="w-32 h-32 rounded-full border-4 border-white shadow-lg"
                 />
-                <label className="absolute bottom-0 right-0 bg-green-600 text-white p-2 rounded-full cursor-pointer hover:bg-green-700 transition-colors">
-                  <FiEdit2 className="w-5 h-5" />
-                  <input
-                    type="file"
-                    className="hidden"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                  />
-                </label>
               </div>
             </div>
           </div>
 
-          {/* Profile Content */}
           <div className="pt-20 pb-8 px-8">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
               <h2 className="text-3xl font-bold text-gray-800">
                 Profil Pengguna
               </h2>
               <div className="flex flex-row gap-4 w-full sm:w-auto">
-                {isEditing ? (
-                  <button
-                    onClick={handleSave}
-                    className="flex-1 sm:flex-none bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Simpan
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="flex-1 sm:flex-none bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
-                  >
-                    Edit Profil
-                  </button>
-                )}
                 <button
                   onClick={handleLogout}
                   className="flex-1 sm:flex-none bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
@@ -286,23 +271,9 @@ const Profile = () => {
                   <FiUser className="w-6 h-6 text-green-600" />
                   <div>
                     <p className="text-sm text-gray-500">Nama</p>
-                    {isEditing ? (
-                      <input
-                        type="text"
-                        value={editedUser.displayName || ""}
-                        onChange={(e) =>
-                          setEditedUser({
-                            ...editedUser,
-                            displayName: e.target.value,
-                          })
-                        }
-                        className="border rounded-lg px-3 py-2 w-full"
-                      />
-                    ) : (
-                      <p className="font-semibold">
-                        {user.displayName || "Belum diisi"}
-                      </p>
-                    )}
+                    <p className="font-semibold">
+                      {user.displayName || "Belum diisi"}
+                    </p>
                   </div>
                 </div>
 
@@ -310,7 +281,9 @@ const Profile = () => {
                   <FiMail className="w-6 h-6 text-green-600" />
                   <div>
                     <p className="text-sm text-gray-500">Email</p>
-                    <p className="font-semibold">{user.email}</p>
+                    <p className="font-semibold">
+                      {user.email || "Email tidak tersedia"}
+                    </p>
                   </div>
                 </div>
 
@@ -327,7 +300,7 @@ const Profile = () => {
                     ⏰
                   </span>
                   <div>
-                    <p className="text-sm text-gray-500">Dibuat</p>
+                    <p className="text-sm text-gray-500">Masuk</p>
                     <p className="font-semibold">{user.createdAt}</p>
                   </div>
                 </div>
@@ -364,23 +337,9 @@ const Profile = () => {
                   <FiPhone className="w-6 h-6 text-green-600" />
                   <div>
                     <p className="text-sm text-gray-500">Nomor Telepon</p>
-                    {isEditing ? (
-                      <input
-                        type="tel"
-                        value={editedUser.phone || ""}
-                        onChange={(e) =>
-                          setEditedUser({
-                            ...editedUser,
-                            phone: e.target.value,
-                          })
-                        }
-                        className="border rounded-lg px-3 py-2 w-full"
-                      />
-                    ) : (
-                      <p className="font-semibold">
-                        {user.phone || "Belum diisi"}
-                      </p>
-                    )}
+                    <p className="font-semibold">
+                      {user.phone || "Belum diisi"}
+                    </p>
                   </div>
                 </div>
 
@@ -388,29 +347,14 @@ const Profile = () => {
                   <FiMapPin className="w-6 h-6 text-green-600" />
                   <div>
                     <p className="text-sm text-gray-500">Alamat</p>
-                    {isEditing ? (
-                      <textarea
-                        value={editedUser.address || ""}
-                        onChange={(e) =>
-                          setEditedUser({
-                            ...editedUser,
-                            address: e.target.value,
-                          })
-                        }
-                        className="border rounded-lg px-3 py-2 w-full"
-                        rows="3"
-                      />
-                    ) : (
-                      <p className="font-semibold">
-                        {user.address || "Belum diisi"}
-                      </p>
-                    )}
+                    <p className="font-semibold">
+                      {user.address || "Belum diisi"}
+                    </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Tombol tambah toko */}
             <div className="my-4">
               <button
                 onClick={() => setShowAddToko(true)}
@@ -419,7 +363,7 @@ const Profile = () => {
                 + Tambah Toko
               </button>
             </div>
-            {/* Modal/Form tambah toko */}
+
             {showAddToko && (
               <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
                 <form
@@ -429,7 +373,7 @@ const Profile = () => {
                   <button
                     type="button"
                     onClick={() => setShowAddToko(false)}
-                    className="absolute top-2 right-2 text-white hover:text-red-300 text-xl"
+                    className="absolute top-2 right-2 text-gray-600 hover:text-red-600 text-xl"
                   >
                     ×
                   </button>
@@ -452,7 +396,6 @@ const Profile = () => {
                       Kategori
                     </label>
                     <select
-                      type="text"
                       name="category"
                       value={tokoForm.category}
                       onChange={handleTokoChange}
@@ -514,10 +457,10 @@ const Profile = () => {
                     />
                   </div>
                   {tokoError && (
-                    <div className="text-red-200 mb-2 text-sm">{tokoError}</div>
+                    <div className="text-red-600 mb-2 text-sm">{tokoError}</div>
                   )}
                   {tokoSuccess && (
-                    <div className="text-green-200 mb-2 text-sm">
+                    <div className="text-green-600 mb-2 text-sm">
                       {tokoSuccess}
                     </div>
                   )}
