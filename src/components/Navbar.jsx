@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { FiShoppingBag, FiUser } from "react-icons/fi";
+import { FiShoppingBag, FiUser, FiShoppingCart } from "react-icons/fi";
 
 const Navbar = () => {
   const location = useLocation();
@@ -64,6 +64,7 @@ const Navbar = () => {
     { to: "/products", label: "Products" },
     { to: "/about", label: "About" },
     { to: "/contact", label: "Contact" },
+    { to: "/cart", label: "Cart", icon: <FiShoppingCart className="w-5 h-5" /> },
   ];
 
   // Links for logged in users
@@ -101,7 +102,7 @@ const Navbar = () => {
             <Link
               key={link.to}
               to={link.to}
-              className={`px-4 py-2 font-medium transition border
+              className={`px-4 py-2 font-medium transition border flex items-center gap-2
                 ${
                   isActive(link.to)
                     ? "bg-[#1C5532] text-[#F5F5DC] border-[#1C5532] rounded-xl"
@@ -109,6 +110,7 @@ const Navbar = () => {
                 }
               `}
             >
+              {link.icon && link.icon}
               {link.label}
             </Link>
           ))}
@@ -175,7 +177,7 @@ const Navbar = () => {
               key={link.to}
               to={link.to}
               onClick={() => setMenuOpen(false)}
-              className={`w-full text-center px-4 py-2 font-medium transition border
+              className={`w-full text-center px-4 py-2 font-medium transition border flex items-center justify-center gap-2
                 ${
                   isActive(link.to)
                     ? "bg-[#1C5532] text-[#F5F5DC] border-[#1C5532] rounded-xl"
@@ -183,6 +185,7 @@ const Navbar = () => {
                 }
               `}
             >
+              {link.icon && link.icon}
               {link.label}
             </Link>
           ))}

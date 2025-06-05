@@ -8,13 +8,20 @@ import {
   FiShield,
   FiClock,
   FiArrowRight,
+  FiX,
+  FiUser,
+  FiTag,
+  FiShoppingCart
 } from "react-icons/fi";
 import { searchProducts } from "../services/api"; // Sesuaikan path ke file API service
+import { useCart } from "../contexts/CartContext";
 
 const Home = () => {
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [selectedProduct, setSelectedProduct] = useState(null); // State for modal
+  const { addToCart } = useCart();
 
   // Fetch featured products
   const fetchFeaturedProducts = async () => {
@@ -28,6 +35,8 @@ const Home = () => {
         price: item.item.basePrice,
         image: item.merchant.photoUrl || "https://via.placeholder.com/150",
         description: `Dijual oleh ${item.merchant.name} - Kategori: ${item.item.category}`,
+        seller: item.merchant.name,
+        category: item.item.category,
       }));
       setFeaturedProducts(filteredProducts);
     } catch (err) {
@@ -42,6 +51,16 @@ const Home = () => {
   useEffect(() => {
     fetchFeaturedProducts();
   }, []);
+
+  // Open modal with selected product
+  const openModal = (product) => {
+    setSelectedProduct(product);
+  };
+
+  // Close modal
+  const closeModal = () => {
+    setSelectedProduct(null);
+  };
 
   return (
     <div className="min-h-screen bg-[#F5F5DC]">
@@ -135,18 +154,85 @@ const Home = () => {
                   <p className="text-green-700 font-semibold text-xl mb-4">
                     Rp{product.price.toLocaleString("id-ID")}
                   </p>
-                  <Link
-                    to={`/product/${product.id}`}
-                    className="mt-auto bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow transition-colors"
+                  <button
+                    onClick={() => openModal(product)}
+                    className="mt-auto bg-[#1C5532] hover:bg-[#76AB51] text-[#F5F5DC] px-4 py-2 rounded shadow transition-colors"
                   >
                     Lihat Detail
-                  </Link>
+                  </button>
                 </div>
               ))}
             </div>
           )}
         </div>
       </section>
+
+      {/* Modal for Product Details */}
+      {selectedProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          {/* Modal Container */}
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl p-8 relative">
+            {/* Tombol Close */}
+            <button
+              onClick={closeModal}
+              className="absolute top-5 right-5 text-gray-400 hover:text-red-500 focus:outline-none"
+              aria-label="Tutup modal"
+            >
+              <FiX className="text-3xl" />
+            </button>
+
+            <div className="flex flex-col md:flex-row gap-8 items-center">
+              {/* Gambar Produk */}
+              <div className="flex-shrink-0">
+                <img
+                  src={
+                    selectedProduct.image || "https://via.placeholder.com/300"
+                  }
+                  alt={selectedProduct.name || "Gambar Produk"}
+                  className="w-56 h-56 object-cover rounded-xl border-4 border-[#76AB51] shadow-md"
+                />
+              </div>
+
+              {/* Informasi Produk */}
+              <div className="flex-grow text-center md:text-left">
+                {/* Nama Produk */}
+                <h3 className="text-3xl font-bold text-[#1C5532] mb-2">
+                  {selectedProduct.name}
+                </h3>
+
+                {/* Penjual dan Kategori */}
+                <div className="text-gray-600 text-base flex items-center justify-center md:justify-start gap-2 mb-4">
+                  <FiUser className="text-gray-400" />
+                  <span className="font-medium">
+                    {selectedProduct.seller || "Toko Alex"}
+                  </span>
+                  <span className="mx-1">•</span>
+                  <FiTag className="text-gray-400" />
+                  <span className="font-medium capitalize">
+                    {selectedProduct.category || "buah"}
+                  </span>
+                </div>
+
+                {/* Harga Produk */}
+                <p className="text-[#1C5532] text-2xl font-semibold mb-6">
+                  Rp{selectedProduct.price.toLocaleString("id-ID")}
+                </p>
+
+                {/* Tombol Tambah ke Keranjang */}
+                <div className="flex justify-center md:justify-start">
+                  <button
+                    onClick={() => addToCart(selectedProduct)}
+                    className="flex items-center gap-2 bg-[#76AB51] hover:bg-[#F0A04B] text-white px-8 py-3 rounded-xl font-semibold transition-colors duration-300"
+                  >
+                    <FiShoppingCart className="text-2xl" />
+                    Tambah ke Keranjang
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Features Section */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 bg-[#F5F5DC]">
