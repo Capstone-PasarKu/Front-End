@@ -11,7 +11,7 @@ import {
   FiX,
   FiUser,
   FiTag,
-  FiShoppingCart
+  FiShoppingCart,
 } from "react-icons/fi";
 import { searchProducts } from "../services/api"; // Sesuaikan path ke file API service
 import { useCart } from "../contexts/CartContext";
@@ -21,15 +21,26 @@ const Home = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null); // State for modal
+  const [searchQuery, setSearchQuery] = useState(""); // State for search input
+  const [selectedCategory, setSelectedCategory] = useState(""); // State for selected category
   const { addToCart } = useCart();
 
+  const categories = [
+    { value: "", label: "Semua" },
+    { value: "buah", label: "Buah" },
+    { value: "sayuran", label: "Sayuran" },
+    { value: "daging", label: "Daging" },
+    { value: "ikan", label: "Ikan" },
+    { value: "rempah", label: "Rempah" },
+  ];
+
   // Fetch featured products
-  const fetchFeaturedProducts = async () => {
+  const fetchFeaturedProducts = async (query = "", cat = "") => {
     setLoading(true);
     setError(null);
     try {
-      const data = await searchProducts("", "termurah"); // Fetch products, sorted by cheapest
-      const filteredProducts = data.slice(0, 6).map((item) => ({
+      const data = await searchProducts(query, "termurah");
+      let filteredProducts = data.map((item) => ({
         id: item.id,
         name: item.item.name,
         price: item.item.basePrice,
@@ -38,7 +49,12 @@ const Home = () => {
         seller: item.merchant.name,
         category: item.item.category,
       }));
-      setFeaturedProducts(filteredProducts);
+      if (cat) {
+        filteredProducts = filteredProducts.filter(
+          (product) => product.category.toLowerCase() === cat.toLowerCase()
+        );
+      }
+      setFeaturedProducts(filteredProducts.slice(0, 6)); // Limit to 6 products
     } catch (err) {
       setError(err.message);
       setFeaturedProducts([]);
@@ -47,10 +63,34 @@ const Home = () => {
     }
   };
 
-  // Fetch products on component mount
+  // Fetch products on component mount and when selectedCategory changes
   useEffect(() => {
-    fetchFeaturedProducts();
-  }, []);
+    fetchFeaturedProducts(searchQuery, selectedCategory);
+  }, [selectedCategory]);
+
+  // Debounced search effect
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      fetchFeaturedProducts(searchQuery, selectedCategory);
+    }, 500);
+
+    return () => clearTimeout(debounce);
+  }, [searchQuery]);
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+  };
+
+  // Handle search button click
+  const handleSearchClick = () => {
+    fetchFeaturedProducts(searchQuery, selectedCategory);
+  };
+
+  // Handle category button click
+  const handleCategoryClick = (categoryValue) => {
+    setSelectedCategory(categoryValue);
+  };
 
   // Open modal with selected product
   const openModal = (product) => {
@@ -112,11 +152,35 @@ const Home = () => {
               <input
                 type="text"
                 placeholder="Cari produk..."
-                className="w-full px-6 py-4 rounded-xl border-2 border-[#76AB51] focus:outline-none focus:border-[#1C5532] text-[#1C5532] bg-white"
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="w-full px-6 py-4 rounded-xl border-2 border-[#76AB51] focus:outline-none focus:border-[#1C5532] text-[#1C5532] bg-white shadow-sm"
               />
-              <button className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#1C5532] text-[#F5F5DC] p-3 rounded-lg hover:bg-[#76AB51] transition duration-300">
+              <button
+                onClick={handleSearchClick}
+                className="absolute right-3 top-1/2 -translate-y-1/2 bg-[#1C5532] text-[#F5F5DC] p-3 rounded-lg hover:bg-[#76AB51] transition duration-300 shadow-sm"
+              >
                 <FiSearch className="text-xl" />
               </button>
+            </div>
+            {/* Category Buttons */}
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              {categories.map((cat) => (
+                <button
+                  key={cat.value}
+                  type="button"
+                  onClick={() => handleCategoryClick(cat.value)}
+                  aria-pressed={selectedCategory === cat.value}
+                  className={`px-5 py-2.5 rounded-xl font-semibold text-sm sm:text-base transition-all duration-300 ease-in-out transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-[#1C5532]/30 shadow-md
+                    ${
+                      selectedCategory === cat.value
+                        ? "bg-[#1C5532] text-[#F5F5DC] border-2 border-[#1C5532] shadow-inner"
+                        : "bg-[#76AB51] text-[#F5F5DC] border-2 border-transparent hover:bg-[#1C5532] hover:border-[#1C5532]"
+                    }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
             </div>
           </div>
         </div>
@@ -128,10 +192,16 @@ const Home = () => {
           <h2 className="text-3xl font-extrabold text-green-700 mb-8 text-center drop-shadow">
             Produk Unggulan
           </h2>
-          {loading && <p className="text-center text-gray-500">Memuat produk...</p>}
+          {loading && (
+            <p className="text-center text-gray-500">Memuat produk...</p>
+          )}
           {error && <p className="text-center text-red-500">Error: {error}</p>}
           {!loading && !error && featuredProducts.length === 0 && (
-            <p className="text-center text-gray-500">Tidak ada produk ditemukan</p>
+            <p className="text-center text-gray-500">
+              Tidak ada produk ditemukan untuk pencarian "
+              {searchQuery || categories.find((cat) => cat.value === selectedCategory)?.label || "Semua"}
+              "
+            </p>
           )}
           {!loading && !error && featuredProducts.length > 0 && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -170,9 +240,7 @@ const Home = () => {
       {/* Modal for Product Details */}
       {selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          {/* Modal Container */}
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl p-8 relative">
-            {/* Tombol Close */}
             <button
               onClick={closeModal}
               className="absolute top-5 right-5 text-gray-400 hover:text-red-500 focus:outline-none"
@@ -180,9 +248,7 @@ const Home = () => {
             >
               <FiX className="text-3xl" />
             </button>
-
             <div className="flex flex-col md:flex-row gap-8 items-center">
-              {/* Gambar Produk */}
               <div className="flex-shrink-0">
                 <img
                   src={
@@ -192,15 +258,10 @@ const Home = () => {
                   className="w-56 h-56 object-cover rounded-xl border-4 border-[#76AB51] shadow-md"
                 />
               </div>
-
-              {/* Informasi Produk */}
               <div className="flex-grow text-center md:text-left">
-                {/* Nama Produk */}
                 <h3 className="text-3xl font-bold text-[#1C5532] mb-2">
                   {selectedProduct.name}
                 </h3>
-
-                {/* Penjual dan Kategori */}
                 <div className="text-gray-600 text-base flex items-center justify-center md:justify-start gap-2 mb-4">
                   <FiUser className="text-gray-400" />
                   <span className="font-medium">
@@ -212,13 +273,9 @@ const Home = () => {
                     {selectedProduct.category || "buah"}
                   </span>
                 </div>
-
-                {/* Harga Produk */}
                 <p className="text-[#1C5532] text-2xl font-semibold mb-6">
                   Rp{selectedProduct.price.toLocaleString("id-ID")}
                 </p>
-
-                {/* Tombol Tambah ke Keranjang */}
                 <div className="flex justify-center md:justify-start">
                   <button
                     onClick={() => addToCart(selectedProduct)}
@@ -252,7 +309,6 @@ const Home = () => {
               dengan harga terbaik
             </p>
           </div>
-
           <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
             <div className="w-12 h-12 bg-[#76AB51] rounded-lg flex items-center justify-center mb-4">
               <FiMapPin className="w-6 h-6 text-[#F5F5DC]" />
@@ -264,7 +320,6 @@ const Home = () => {
               Temukan pasar dan pedagang terdekat dengan lokasi Anda
             </p>
           </div>
-
           <div className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-shadow">
             <div className="w-12 h-12 bg-[#76AB51] rounded-lg flex items-center justify-center mb-4">
               <FiShield className="w-6 h-6 text-[#F5F5DC]" />
@@ -297,7 +352,6 @@ const Home = () => {
                 Temukan produk yang Anda inginkan
               </p>
             </div>
-
             <div className="text-center">
               <div className="w-16 h-16 bg-[#76AB51] rounded-full flex items-center justify-center mx-auto mb-4">
                 <FiShoppingBag className="w-8 h-8 text-[#F5F5DC]" />
@@ -309,7 +363,6 @@ const Home = () => {
                 Pilih produk dan tambahkan ke keranjang
               </p>
             </div>
-
             <div className="text-center">
               <div className="w-16 h-16 bg-[#76AB51] rounded-full flex items-center justify-center mx-auto mb-4">
                 <FiClock className="w-8 h-8 text-[#F5F5DC]" />
@@ -319,7 +372,6 @@ const Home = () => {
               </h3>
               <p className="text-[#1C5532]">Lakukan pembayaran dengan aman</p>
             </div>
-
             <div className="text-center">
               <div className="w-16 h-16 bg-[#76AB51] rounded-full flex items-center justify-center mx-auto mb-4">
                 <FiTruck className="w-8 h-8 text-[#F5F5DC]" />

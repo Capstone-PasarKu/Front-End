@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { registerUser } from "../services/api";
-import { FiMail, FiLock, FiUser } from "react-icons/fi";
+import { FiMail, FiLock, FiUser, FiPhone, FiMapPin } from "react-icons/fi";
 
 const Register = () => {
-  const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [form, setForm] = useState({ name: "", email: "", phoneNumber: "", address: "", password: "" });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -20,11 +20,17 @@ const Register = () => {
     setError("");
     setSuccess("");
     try {
-      const res = await registerUser(form.email, form.password);
+      const res = await registerUser({
+        name: form.name,
+        email: form.email,
+        phoneNumber: form.phoneNumber,
+        address: form.address,
+        password: form.password,
+      });
       setSuccess("Register berhasil! Silakan login.");
       setTimeout(() => navigate("/login"), 1200);
     } catch (err) {
-      setError("Register gagal. Email mungkin sudah terdaftar.");
+      setError("Register gagal. Email mungkin sudah terdaftar atau data tidak valid.");
     } finally {
       setLoading(false);
     }
@@ -118,10 +124,57 @@ const Register = () => {
             />
           </div>
         </div>
+        <div className="mb-4">
+          <label
+            className="block text-green-800 font-semibold mb-1"
+            htmlFor="phoneNumber"
+          >
+            Nomor Telepon
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <FiPhone className="h-5 w-5 text-green-600" />
+            </div>
+            <input
+              id="phoneNumber"
+              type="tel"
+              name="phoneNumber"
+              value={form.phoneNumber}
+              onChange={handleChange}
+              required
+              className="w-full pl-10 px-4 py-3 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 transition"
+              placeholder="Masukkan nomor telepon Anda"
+            />
+          </div>
+        </div>
+        <div className="mb-4">
+          <label
+            className="block text-green-800 font-semibold mb-1"
+            htmlFor="address"
+          >
+            Alamat
+          </label>
+          <div className="relative">
+            <div className="absolute top-3 left-0 pl-3 flex items-start pointer-events-none">
+              <FiMapPin className="h-5 w-5 text-green-600" />
+            </div>
+            <textarea
+              id="address"
+              name="address"
+              value={form.address}
+              onChange={handleChange}
+              required
+              rows="4"
+              className="w-full pl-10 px-4 py-3 border border-green-300 rounded focus:outline-none focus:ring-2 focus:ring-green-400 transition resize-y"
+              placeholder="Masukkan alamat Anda"
+            />
+          </div>
+        </div>
         <button
           type="submit"
-          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded transition mb-3 shadow disabled:opacity-60"
+          className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded transition mb-3 shadow-sm disabled:opacity-60"
           disabled={loading}
+          aria-label={loading ? "Mendaftar" : "Daftar"}
         >
           {loading ? "Mendaftar..." : "Daftar"}
         </button>
@@ -129,18 +182,16 @@ const Register = () => {
           <div className="text-red-600 text-center text-sm mb-2">{error}</div>
         )}
         {success && (
-          <div className="text-green-700 text-center text-sm mb-2">
-            {success}
-          </div>
+          <div className="text-green-700 text-center text-sm mb-2">{success}</div>
         )}
         <div className="text-center text-sm text-green-800">
           Sudah punya akun?{" "}
-          <a
-            href="/login"
+          <Link
+            to="/login"
             className="text-green-700 font-semibold hover:underline"
           >
             Masuk
-          </a>
+          </Link>
         </div>
       </form>
     </div>

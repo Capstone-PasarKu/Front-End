@@ -64,13 +64,14 @@ const Navbar = () => {
     { to: "/products", label: "Products" },
     { to: "/about", label: "About" },
     { to: "/contact", label: "Contact" },
-    { to: "/cart", label: "Cart", icon: <FiShoppingCart className="w-5 h-5" /> },
   ];
 
-  // Links for logged in users
+  // Links for logged in users, with Cart before Profile
   const loggedInLinks = [
     ...baseLinks,
     { to: "/quality-check", label: "Cek Kualitas" },
+    { to: "/cart", label: "Cart", icon: <FiShoppingCart className="w-5 h-5" /> },
+    { to: "/profile", label: "Profile", icon: <FiUser className="w-5 h-5" /> },
   ];
 
   // Links for non-logged in users
@@ -98,46 +99,61 @@ const Navbar = () => {
         </Link>
         {/* Desktop Menu */}
         <div className="hidden md:flex items-center space-x-1">
-          {navLinks.map((link) => (
+          {navLinks
+            .filter((link) => link.label !== "Profile" && link.label !== "Cart")
+            .map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className={`px-4 py-2 font-medium transition border flex items-center gap-2
+                  ${
+                    isActive(link.to)
+                      ? "bg-[#1C5532] text-[#F5F5DC] border-[#1C5532] rounded-xl"
+                      : "bg-[#76AB51] text-[#1C5532] border-[#76AB51] hover:bg-[#1C5532] hover:text-[#F5F5DC] rounded-lg"
+                  }
+                `}
+              >
+                {link.icon && link.icon}
+                {link.label}
+              </Link>
+            ))}
+          {isLoggedIn && merchantId && (
             <Link
-              key={link.to}
-              to={link.to}
-              className={`px-4 py-2 font-medium transition border flex items-center gap-2
+              to={`/dashboard-toko/${merchantId}`}
+              className={`px-4 py-2 font-medium transition border
                 ${
-                  isActive(link.to)
+                  isActive(`/dashboard-toko/${merchantId}`)
                     ? "bg-[#1C5532] text-[#F5F5DC] border-[#1C5532] rounded-xl"
                     : "bg-[#76AB51] text-[#1C5532] border-[#76AB51] hover:bg-[#1C5532] hover:text-[#F5F5DC] rounded-lg"
                 }
               `}
             >
-              {link.icon && link.icon}
-              {link.label}
-            </Link>
-          ))}
-          {isLoggedIn && merchantId && (
-            <Link
-              to={`/dashboard-toko/${merchantId}`}
-              className={`px-4 py-2 font-medium transition border ml-2
-              ${
-                isActive(`/dashboard-toko/${merchantId}`)
-                  ? "bg-[#1C5532] text-[#F5F5DC] border-[#1C5532] rounded-xl"
-                  : "bg-[#76AB51] text-[#1C5532] border-[#76AB51] hover:bg-[#1C5532] hover:text-[#F5F5DC] rounded-lg"
-              }
-            `}
-            >
               Dashboard Toko
             </Link>
           )}
           {isLoggedIn && (
-            <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end' }}>
+            <>
+              <Link
+                to="/cart"
+                className={`px-4 py-2 font-medium transition border flex items-center gap-2
+                  ${
+                    isActive("/cart")
+                      ? "bg-[#1C5532] text-[#F5F5DC] border-[#1C5532] rounded-xl"
+                      : "bg-[#76AB51] text-[#1C5532] border-[#76AB51] hover:bg-[#1C5532] hover:text-[#F5F5DC] rounded-lg"
+                  }
+                `}
+              >
+                <FiShoppingCart className="w-5 h-5" />
+                Cart
+              </Link>
               <Link
                 to="/profile"
-                className="ml-4 flex items-center justify-center w-10 h-10 rounded-full bg-[#1C5532] text-[#F5F5DC] hover:bg-[#14532d] transition border-2 border-[#1C5532] shadow-lg"
+                className="ml-2 flex items-center justify-center w-10 h-10 rounded-full bg-[#1C5532] text-[#F5F5DC] hover:bg-[#14532d] transition border-2 border-[#1C5532] shadow-lg"
                 title="Profil"
               >
                 <FiUser className="w-6 h-6" />
               </Link>
-            </div>
+            </>
           )}
         </div>
         {/* Mobile Hamburger */}
@@ -189,25 +205,14 @@ const Navbar = () => {
               {link.label}
             </Link>
           ))}
-          {isLoggedIn && (
-            <>
-              <Link
-                to="/profile"
-                onClick={() => setMenuOpen(false)}
-                className={`w-full text-center px-4 py-2 font-medium transition border bg-[#76AB51] text-[#1C5532] border-[#76AB51] hover:bg-[#1C5532] hover:text-[#F5F5DC] rounded-lg`}
-              >
-                Profil
-              </Link>
-              {merchantId && (
-                <Link
-                  to={`/dashboard-toko/${merchantId}`}
-                  onClick={() => setMenuOpen(false)}
-                  className={`w-full text-center px-4 py-2 font-medium transition border bg-[#76AB51] text-[#1C5532] border-[#76AB51] hover:bg-[#1C5532] hover:text-[#F5F5DC] rounded-lg`}
-                >
-                  Dashboard Toko
-                </Link>
-              )}
-            </>
+          {isLoggedIn && merchantId && (
+            <Link
+              to={`/dashboard-toko/${merchantId}`}
+              onClick={() => setMenuOpen(false)}
+              className={`w-full text-center px-4 py-2 font-medium transition border bg-[#76AB51] text-[#1C5532] border-[#76AB51] hover:bg-[#1C5532] hover:text-[#F5F5DC] rounded-lg`}
+            >
+              Dashboard Toko
+            </Link>
           )}
         </div>
       )}
