@@ -44,7 +44,7 @@ const Home = () => {
         id: item.id,
         name: item.item.name,
         price: item.item.basePrice,
-        image: item.merchant.photoUrl || "https://via.placeholder.com/150",
+        image: item.item.photoUrl || "https://via.placeholder.com/150",
         description: `Dijual oleh ${item.merchant.name} - Kategori: ${item.item.category}`,
         seller: item.merchant.name,
         category: item.item.category,

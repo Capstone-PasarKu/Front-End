@@ -8,10 +8,13 @@ export const getProducts = async () => {
   return data;
 };
 
-export const registerUser = async (email, password) => {
+export const registerUser = async (email, password, name, address, phoneNumber) => {
   const formData = new FormData();
   formData.append("email", email);
   formData.append("password", password);
+  formData.append("name", name);
+  formData.append("address", address);
+  formData.append("phoneNumber", phoneNumber);
   const res = await fetch(`${API_URL}/register`, {
     method: "POST",
     body: formData,
@@ -19,6 +22,7 @@ export const registerUser = async (email, password) => {
   if (!res.ok) throw new Error("Register gagal");
   return res.json();
 };
+
 
 export const loginUser = async (email, password) => {
   const formData = new FormData();
@@ -142,6 +146,7 @@ export const getBuyerOrders = async (token) => {
   return res.json();
 };
 
+
 export const addItem = async (token, itemData) => {
   const formData = new FormData();
   Object.keys(itemData).forEach(key => {
@@ -158,6 +163,46 @@ export const addItem = async (token, itemData) => {
   if (!res.ok) throw new Error("Gagal menambah barang");
   return res.json();
 };
+
+export const addToCart = async (token, cartData) => {
+  const formData = new FormData();
+  Object.keys(cartData).forEach(key => {
+    formData.append(key, cartData[key]);
+  });
+
+  const res = await fetch(`${API_URL}/cart`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  });
+  if (!res.ok) throw new Error("Gagal menambah barang ke keranjang");
+  return res.json();
+};
+
+export const getCart = async (token) => {
+  const res = await fetch(`${API_URL}/cart`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error("Gagal mengambil keranjang");
+  return res.json();
+};
+
+export const getProfile = async (token) => {
+  const res = await fetch(`${API_URL}/profile`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error("Gagal mengambil profil");
+  return res.json();
+};
+
 
 export const updateItem = async (token, itemId, itemData) => {
   const formData = new FormData();
