@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { FiPackage, FiDollarSign, FiUsers, FiStar, FiEdit2, FiPlus } from "react-icons/fi";
-import { getDashboardToko, getMerchantItems, getMerchants } from "../services/api";
+import { getDashboardToko, getMerchantItems, getMerchants, addItem, updateItem, deleteItem } from "../services/api";
 
 const DashboardToko = () => {
   const { id } = useParams(); // Ambil merchantId dari URL
@@ -15,21 +15,34 @@ const DashboardToko = () => {
     totalRevenue: 0,
     averageRating: 0,
   });
+  // State for modal and form
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [currentItemId, setCurrentItemId] = useState(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    category: "",
+    basePrice: "",
+    image: null,
+    quantity: "",
+  });
+  const [formError, setFormError] = useState(null);
+  const [formSuccess, setFormSuccess] = useState(null);
 
   // Ambil data dashboard toko, merchant, dan daftar barang saat komponen dimuat
   useEffect(() => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem("token");
-        console.log("Fetching data with token:", token, "and merchantId:", id); // Debug token dan id
+        console.log("Fetching data with token:", token, "and merchantId:", id);
 
         if (!token) {
           throw new Error("Token tidak ditemukan. Silakan login kembali.");
         }
 
-        // Panggil getMerchants untuk nama toko dan kategori
-        const merchantsData = await getMerchants(token, true); // owned=true biar cuma toko milik user
-        console.log("Merchants API Response:", merchantsData); // Debug respons merchants
+        // API Call 1: getMerchants
+        const merchantsData = await getMerchants(token, true);
+        console.log("Merchants API Response:", merchantsData);
         const foundMerchant = merchantsData.find((m) => m.id === id);
         if (!foundMerchant) {
           throw new Error("Toko tidak ditemukan.");
@@ -40,23 +53,21 @@ const DashboardToko = () => {
           category: foundMerchant.category,
         });
 
-        // Panggil getDashboardToko untuk statistik dan topProducts
+        // API Call 2: getDashboardToko
         const dashboardData = await getDashboardToko(token, id);
-        console.log("Dashboard API Response:", dashboardData); // Debug respons dashboard
+        console.log("Dashboard API Response:", dashboardData);
 
-        // Perbarui state stats berdasarkan respons getDashboardToko
         setStats({
-          totalProducts: dashboardData.topProducts?.length || 0, // Jumlah produk dari topProducts
-          totalOrders: (dashboardData.ordersByStatus?.completed || 0) + (dashboardData.ordersByStatus?.pending || 0), // Total pesanan
-          totalRevenue: dashboardData.totalSales || 0, // Total pendapatan
-          averageRating: 0, // Rating belum ada di respons, tetap 0
+          totalProducts: dashboardData.topProducts?.length || 0,
+          totalOrders: (dashboardData.ordersByStatus?.completed || 0) + (dashboardData.ordersByStatus?.pending || 0),
+          totalRevenue: dashboardData.totalSales || 0,
+          averageRating: 0,
         });
 
-        // Panggil getMerchantItems untuk daftar barang
+        // API Call 3: getMerchantItems
         const itemsData = await getMerchantItems(token, id);
-        console.log("Items API Response:", itemsData); // Debug respons items
+        console.log("Items API Response:", itemsData);
 
-        // Gabungkan data dari topProducts dan getMerchantItems berdasarkan nama
         const topProducts = dashboardData.topProducts || [];
         const formattedProducts = Array.isArray(itemsData)
           ? itemsData.map((item) => {
@@ -66,9 +77,9 @@ const DashboardToko = () => {
                 name: item.name,
                 category: item.category || "",
                 price: item.basePrice || 0,
-                stock: topProduct ? topProduct.totalQuantity : 0, // Ambil stock dari totalQuantity
-                is_active: true, // Asumsi aktif, sesuaikan jika ada data status
-                image_url: item.image_url || "https://via.placeholder.com/40", // Placeholder image
+                stock: topProduct ? topProduct.totalQuantity : 0,
+                is_active: true,
+                image_url: item.image_url || "https://via.placeholder.com/40",
               };
             })
           : [];
@@ -83,6 +94,158 @@ const DashboardToko = () => {
 
     fetchData();
   }, [id]);
+
+  // Handle form input changes
+  const handleInputChange = (e) => {
+    const { name, value, files } = e.target;
+    if (name === "image") {
+      setFormData({ ...formData, image: files[0] });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
+  };
+
+  // Handle form submission (Tambah atau Edit)
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setFormError(null);
+    setFormSuccess(null);
+
+    // Validasi form
+    if (!formData.name || formData.name.trim() === "") {
+      setFormError("Nama produk tidak boleh kosong.");
+      return;
+    }
+    if (!formData.category) {
+      setFormError("Kategori harus dipilih.");
+      return;
+    }
+    if (!formData.basePrice || Number(formData.basePrice) < 1000) {
+      setFormError("Harga harus lebih besar dari atau sama dengan 1000.");
+      return;
+    }
+    if (!formData.quantity || Number(formData.quantity) < 1) {
+      setFormError("Stok harus lebih besar dari atau sama dengan 1.");
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("token");
+      console.log("Token:", token);
+      if (!token) {
+        throw new Error("Token tidak ditemukan. Silakan login kembali.");
+      }
+
+      // Siapkan data untuk API, termasuk quantity
+      const itemData = new FormData();
+      itemData.append("name", formData.name);
+      itemData.append("category", formData.category);
+      itemData.append("basePrice", Number(formData.basePrice));
+      if (formData.image) {
+        itemData.append("image", formData.image);
+      }
+      itemData.append("merchantId", id);
+      itemData.append("quantity", Number(formData.quantity)); // Kirim quantity ke API
+
+      console.log("Sending itemData:", Object.fromEntries(itemData));
+
+      let response;
+      if (isEditMode) {
+        // API Call: updateItem
+        response = await updateItem(token, currentItemId, itemData);
+        console.log("Update Item API Response:", response);
+
+        setProducts(products.map((product) =>
+          product.id === currentItemId
+            ? {
+                ...product,
+                name: formData.name,
+                category: formData.category,
+                price: Number(formData.basePrice),
+                stock: Number(formData.quantity), // Gunakan quantity dari form untuk state lokal
+                image_url: response.image_url || product.image_url,
+              }
+            : product
+        ));
+        setFormSuccess("Barang berhasil diperbarui!");
+      } else {
+        // API Call: addItem
+        response = await addItem(token, itemData);
+        console.log("Add Item API Response:", response);
+
+        setProducts([
+          ...products,
+          {
+            id: response.id,
+            name: formData.name,
+            category: formData.category,
+            price: Number(formData.basePrice),
+            stock: Number(formData.quantity), // Gunakan quantity dari form untuk state lokal
+            is_active: true,
+            image_url: response.image_url || "https://via.placeholder.com/40",
+          },
+        ]);
+        setStats((prevStats) => ({
+          ...prevStats,
+          totalProducts: prevStats.totalProducts + 1,
+        }));
+        setFormSuccess("Barang berhasil ditambahkan!");
+      }
+
+      setFormData({
+        name: "",
+        category: "",
+        basePrice: "",
+        image: null,
+        quantity: "",
+      });
+      setIsModalOpen(false);
+      setIsEditMode(false);
+      setCurrentItemId(null);
+    } catch (err) {
+      console.error("Error processing item:", err);
+      setFormError("Gagal memproses barang: " + (err.message || "Unknown error"));
+    }
+  };
+
+  // Handle edit button click
+  const handleEditClick = (product) => {
+    setIsEditMode(true);
+    setCurrentItemId(product.id);
+    setFormData({
+      name: product.name,
+      category: product.category,
+      basePrice: product.price.toString(),
+      image: null,
+      quantity: product.stock.toString(),
+    });
+    setIsModalOpen(true);
+  };
+
+  // Handle delete button click
+  const handleDeleteClick = async (itemId) => {
+    if (!window.confirm("Apakah Anda yakin ingin menghapus barang ini?")) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        throw new Error("Token tidak ditemukan. Silakan login kembali.");
+      }
+
+      // API Call: deleteItem
+      const response = await deleteItem(token, itemId);
+      console.log("Delete Item API Response:", response);
+
+      setProducts(products.filter((product) => product.id !== itemId));
+      setStats((prevStats) => ({
+        ...prevStats,
+        totalProducts: prevStats.totalProducts - 1,
+      }));
+    } catch (err) {
+      console.error("Error deleting item:", err);
+      alert("Gagal menghapus barang: " + (err.message || "Unknown error"));
+    }
+  };
 
   if (loading) {
     return (
@@ -130,7 +293,6 @@ const DashboardToko = () => {
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex items-center">
               <div className="p-3 bg-blue-100 rounded-lg">
@@ -144,7 +306,6 @@ const DashboardToko = () => {
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex items-center">
               <div className="p-3 bg-purple-100 rounded-lg">
@@ -156,7 +317,6 @@ const DashboardToko = () => {
               </div>
             </div>
           </div>
-
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex items-center">
               <div className="p-3 bg-yellow-100 rounded-lg">
@@ -174,11 +334,141 @@ const DashboardToko = () => {
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-gray-900">Daftar Produk</h2>
-            <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
+            <button
+              onClick={() => {
+                setIsEditMode(false);
+                setFormData({
+                  name: "",
+                  category: "",
+                  basePrice: "",
+                  image: null,
+                  quantity: "",
+                });
+                setIsModalOpen(true);
+              }}
+              className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+            >
               <FiPlus className="mr-2" />
               Tambah Produk
             </button>
           </div>
+
+          {/* Modal for Adding/Editing Product */}
+          {isModalOpen && (
+            <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
+              <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
+                <h2 className="text-xl font-bold text-gray-900 mb-4">
+                  {isEditMode ? "Edit Produk" : "Tambah Produk Baru"}
+                </h2>
+                {formError && (
+                  <div className="text-red-600 mb-4">{formError}</div>
+                )}
+                {formSuccess && (
+                  <div className="text-green-600 mb-4">{formSuccess}</div>
+                )}
+                <form onSubmit={handleSubmit}>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Nama Produk
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-600 focus:ring focus:ring-green-600 focus:ring-opacity-50"
+                      required
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Kategori
+                    </label>
+                    <select
+                      name="category"
+                      value={formData.category}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-600 focus:ring focus:ring-green-600 focus:ring-opacity-50"
+                      required
+                    >
+                      <option value="">Pilih Kategori</option>
+                      <option value="Buah">Buah</option>
+                      <option value="Sayur">Sayur</option>
+                      <option value="Seafood">Seafood</option>
+                      <option value="Rempah">Rempah</option>
+                      <option value="Daging">Daging</option>
+                    </select>
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Harga (Rp)
+                    </label>
+                    <input
+                      type="number"
+                      name="basePrice"
+                      value={formData.basePrice}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-600 focus:ring focus:ring-green-600 focus:ring-opacity-50"
+                      required
+                      min="1000"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Stok Awal
+                    </label>
+                    <input
+                      type="number"
+                      name="quantity"
+                      value={formData.quantity}
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-600 focus:ring focus:ring-green-600 focus:ring-opacity-50"
+                      required
+                      min="1"
+                    />
+                  </div>
+                  <div className="mb-4">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Gambar Produk
+                    </label>
+                    <input
+                      type="file"
+                      name="image"
+                      accept="image/*"
+                      onChange={handleInputChange}
+                      className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-green-600 file:text-white file:hover:bg-green-700"
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsModalOpen(false);
+                        setIsEditMode(false);
+                        setCurrentItemId(null);
+                        setFormData({
+                          name: "",
+                          category: "",
+                          basePrice: "",
+                          image: null,
+                          quantity: "",
+                        });
+                      }}
+                      className="mr-2 bg-gray-300 text-gray-900 px-4 py-2 rounded-lg hover:bg-gray-400 transition-colors"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      Simpan
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
 
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -243,10 +533,16 @@ const DashboardToko = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <button className="text-green-600 hover:text-green-900 mr-3">
+                      <button
+                        onClick={() => handleEditClick(product)}
+                        className="text-green-600 hover:text-green-900 mr-3"
+                      >
                         Edit
                       </button>
-                      <button className="text-red-600 hover:text-red-900">
+                      <button
+                        onClick={() => handleDeleteClick(product.id)}
+                        className="text-red-600 hover:text-red-900"
+                      >
                         Hapus
                       </button>
                     </td>
