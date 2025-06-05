@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { FiSearch } from "react-icons/fi";
-import { searchProducts } from "../services/api"; // Adjust path to your API service file
+import { Link } from "react-router-dom";
+import { searchProducts } from "../services/api"; // Sesuaikan path ke file API service
 
 const Products = () => {
 	const [products, setProducts] = useState([]);
@@ -44,12 +45,12 @@ const Products = () => {
 		}
 	};
 
-	// Fetch initial products on component mount
+	// Ambil produk awal saat komponen dimuat
 	useEffect(() => {
 		fetchProducts(searchQuery, sortBy, category);
 	}, [sortBy, category]);
 
-	// Handle search input change with debouncing
+	// Handle perubahan input pencarian dengan debouncing
 	const handleSearch = (e) => {
 		const query = e.target.value;
 		setSearchQuery(query);
@@ -59,18 +60,18 @@ const Products = () => {
 		return () => clearTimeout(debounce);
 	};
 
-	// Handle search button click
+	// Handle klik tombol pencarian
 	const handleSearchClick = () => {
 		fetchProducts(searchQuery, sortBy, category);
 	};
 
-	// Handle sort change
+	// Handle perubahan sort
 	const handleSortChange = (e) => {
 		const newSort = e.target.value;
 		setSortBy(newSort);
 	};
 
-	// Handle category change
+	// Handle perubahan kategori
 	const handleCategoryChange = (e) => {
 		const newCategory = e.target.value;
 		setCategory(newCategory);
@@ -82,7 +83,7 @@ const Products = () => {
 				Katalog Produk
 			</h2>
 
-			{/* Search and Filter Section */}
+			{/* Seksi Pencarian dan Filter */}
 			<section className="py-6 bg-[#F5F5DC]">
 				<div className="container mx-auto px-4">
 					<div className="max-w-6xl mx-auto flex flex-col sm:flex-row gap-4 items-center">
@@ -124,14 +125,14 @@ const Products = () => {
 				</div>
 			</section>
 
-			{/* Loading and Error States */}
+			{/* Status Loading dan Error */}
 			{loading && <p className="text-center text-gray-500">Memuat produk...</p>}
 			{error && <p className="text-center text-red-500">Error: {error}</p>}
 			{!loading && !error && products.length === 0 && (
 				<p className="text-center text-gray-500">Tidak ada produk ditemukan</p>
 			)}
 
-			{/* Product Grid */}
+			{/* Grid Produk */}
 			{products.length > 0 && (
 				<div className="grid sm:grid-cols-2 md:grid-cols-3 gap-8">
 					{products.map((product) => (
@@ -155,9 +156,12 @@ const Products = () => {
 							<p className="text-green-700 font-semibold text-xl mb-4">
 								Rp{product.price.toLocaleString("id-ID")}
 							</p>
-							<button className="mt-auto bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow transition-colors">
+							<Link
+								to={`/product/${product.id}`}
+								className="mt-auto bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded shadow transition-colors"
+							>
 								Lihat Detail
-							</button>
+							</Link>
 						</div>
 					))}
 				</div>

@@ -11,7 +11,7 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Products from "./pages/Products";  
 import Footer from "./components/Footer";
-
+import ProductDetail from "./pages/ProductDetail";
 function App() {
   return (
     <Router>
@@ -28,7 +28,10 @@ function App() {
           <Route path="/contact" element={<Contact />} />
           <Route path="/products" element={<Products />} />
           {/* Tambahkan route lainnya sesuai kebutuhan */}
+          <Route path="/product/:id" element={<ProductDetail />} />
+				{/* Tambah rute lain, misal /order, kalo perlu */}
         </Routes>
+         
       </div>
       <Footer />
     </Router>
