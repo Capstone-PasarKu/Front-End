@@ -3,7 +3,7 @@ import axios from "axios";
 const API_URL = "https://pasarku-backend.vercel.app/api";
 
 export const getProducts = async () => {
-  const res = await fetch("http://localhost:5000/api/products");
+  const res = await fetch(`${API_URL}/product/search`);
   const data = await res.json();
   return data;
 };
@@ -32,7 +32,6 @@ export const loginUser = async (email, password) => {
   return res.json();
 };
 
-// Fungsi untuk mendapatkan data user dari token
 export const getUserFromToken = (token) => {
   try {
     const base64Url = token.split('.')[1];
@@ -48,7 +47,6 @@ export const getUserFromToken = (token) => {
   }
 };
 
-// Tambah fungsi untuk menambah toko
 export const addMerchant = async (token, merchantData) => {
   const formData = new FormData();
   Object.keys(merchantData).forEach(key => {
@@ -78,7 +76,6 @@ export const getDashboardToko = async (token, merchantId) => {
   return res.json();
 };
 
-// Fungsi untuk mendapatkan daftar toko
 export const getMerchants = async (token, owned = false) => {
   const url = owned ? `${API_URL}/merchants?owned=true` : `${API_URL}/merchants`;
   const res = await fetch(url, {
@@ -91,7 +88,6 @@ export const getMerchants = async (token, owned = false) => {
   return res.json();
 };
 
-// Fungsi untuk mendapatkan daftar barang toko
 export const getMerchantItems = async (token, merchantId) => {
   const res = await fetch(`${API_URL}/items?merchantId=${merchantId}`, {
     method: "GET",
@@ -103,21 +99,22 @@ export const getMerchantItems = async (token, merchantId) => {
   return res.json();
 };
 
-// Fungsi untuk mendapatkan stok barang
 export const getStock = async (merchantId) => {
   const res = await fetch(`${API_URL}/stock?merchantId=${merchantId}`);
   if (!res.ok) throw new Error("Gagal mengambil stok");
   return res.json();
 };
 
-// Fungsi untuk mencari produk
-export const searchProducts = async (name, sortBy = "termurah") => {
-  const res = await fetch(`${API_URL}/product/search?name=${name}&sortBy=${sortBy}`);
+export const searchProducts = async (name = "", sortBy = "termurah", category = "") => {
+  const url = new URL(`${API_URL}/product/search`);
+  if (name) url.searchParams.append("name", name);
+  url.searchParams.append("sortBy", sortBy);
+  if (category) url.searchParams.append("category", category);
+  const res = await fetch(url);
   if (!res.ok) throw new Error("Gagal mencari produk");
   return res.json();
 };
 
-// Fungsi untuk membuat pesanan
 export const createOrder = async (token, orderData) => {
   const formData = new FormData();
   Object.keys(orderData).forEach(key => {
@@ -135,7 +132,6 @@ export const createOrder = async (token, orderData) => {
   return res.json();
 };
 
-// Fungsi untuk mendapatkan daftar pesanan pembeli
 export const getBuyerOrders = async (token) => {
   const res = await fetch(`${API_URL}/order`, {
     method: "GET",
@@ -147,7 +143,6 @@ export const getBuyerOrders = async (token) => {
   return res.json();
 };
 
-// Fungsi untuk menambah barang (pedagang)
 export const addItem = async (token, itemData) => {
   const formData = new FormData();
   Object.keys(itemData).forEach(key => {
@@ -165,7 +160,6 @@ export const addItem = async (token, itemData) => {
   return res.json();
 };
 
-// Fungsi untuk update barang (pedagang)
 export const updateItem = async (token, itemId, itemData) => {
   const formData = new FormData();
   Object.keys(itemData).forEach(key => {
@@ -183,7 +177,6 @@ export const updateItem = async (token, itemId, itemData) => {
   return res.json();
 };
 
-// Fungsi untuk hapus barang (pedagang)
 export const deleteItem = async (token, itemId) => {
   const res = await fetch(`${API_URL}/item/${itemId}`, {
     method: "DELETE",
@@ -195,7 +188,6 @@ export const deleteItem = async (token, itemId) => {
   return res.json();
 };
 
-// Fungsi untuk update stok (pedagang)
 export const updateStock = async (token, stockData) => {
   const formData = new FormData();
   Object.keys(stockData).forEach(key => {
@@ -213,7 +205,6 @@ export const updateStock = async (token, stockData) => {
   return res.json();
 };
 
-// Fungsi untuk mendapatkan daftar pesanan pedagang
 export const getMerchantOrders = async (token, merchantId) => {
   const res = await fetch(`${API_URL}/merchant/orders?merchantId=${merchantId}`, {
     method: "GET",
@@ -225,7 +216,6 @@ export const getMerchantOrders = async (token, merchantId) => {
   return res.json();
 };
 
-// Fungsi untuk update status pesanan (pedagang)
 export const updateOrderStatus = async (token, orderId, status) => {
   const res = await fetch(`${API_URL}/order/${orderId}/status`, {
     method: "PATCH",
@@ -239,7 +229,6 @@ export const updateOrderStatus = async (token, orderId, status) => {
   return res.json();
 };
 
-// Fungsi untuk mendapatkan dashboard pedagang
 export const getMerchantDashboard = async (token, merchantId) => {
   const res = await fetch(`${API_URL}/dashboard?merchantId=${merchantId}`, {
     method: "GET",
