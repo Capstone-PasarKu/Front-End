@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { FiPackage, FiDollarSign, FiUsers, FiStar, FiEdit2, FiPlus } from "react-icons/fi";
-import { getDashboardToko, getMerchantItems } from "../services/api"; 
+import { getDashboardToko, getMerchantItems, getMerchants } from "../services/api";
 
 const DashboardToko = () => {
   const { id } = useParams(); // Ambil merchantId dari URL
@@ -16,7 +16,7 @@ const DashboardToko = () => {
     averageRating: 0,
   });
 
-  // Ambil data dashboard toko dan daftar barang saat komponen dimuat
+  // Ambil data dashboard toko, merchant, dan daftar barang saat komponen dimuat
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -27,12 +27,24 @@ const DashboardToko = () => {
           throw new Error("Token tidak ditemukan. Silakan login kembali.");
         }
 
+        // Panggil getMerchants untuk nama toko dan kategori
+        const merchantsData = await getMerchants(token, true); // owned=true biar cuma toko milik user
+        console.log("Merchants API Response:", merchantsData); // Debug respons merchants
+        const foundMerchant = merchantsData.find((m) => m.id === id);
+        if (!foundMerchant) {
+          throw new Error("Toko tidak ditemukan.");
+        }
+        setMerchant({
+          id: foundMerchant.id,
+          name: foundMerchant.name,
+          category: foundMerchant.category,
+        });
+
         // Panggil getDashboardToko untuk statistik dan topProducts
         const dashboardData = await getDashboardToko(token, id);
         console.log("Dashboard API Response:", dashboardData); // Debug respons dashboard
 
         // Perbarui state stats berdasarkan respons getDashboardToko
-        setMerchant(dashboardData.merchant || {});
         setStats({
           totalProducts: dashboardData.topProducts?.length || 0, // Jumlah produk dari topProducts
           totalOrders: (dashboardData.ordersByStatus?.completed || 0) + (dashboardData.ordersByStatus?.pending || 0), // Total pesanan
@@ -47,8 +59,8 @@ const DashboardToko = () => {
         // Gabungkan data dari topProducts dan getMerchantItems berdasarkan nama
         const topProducts = dashboardData.topProducts || [];
         const formattedProducts = Array.isArray(itemsData)
-          ? itemsData.map(item => {
-              const topProduct = topProducts.find(tp => tp.item.toLowerCase() === item.name.toLowerCase());
+          ? itemsData.map((item) => {
+              const topProduct = topProducts.find((tp) => tp.item.toLowerCase() === item.name.toLowerCase());
               return {
                 id: item.id,
                 name: item.name,
@@ -56,7 +68,7 @@ const DashboardToko = () => {
                 price: item.basePrice || 0,
                 stock: topProduct ? topProduct.totalQuantity : 0, // Ambil stock dari totalQuantity
                 is_active: true, // Asumsi aktif, sesuaikan jika ada data status
-                image_url: item.image_url || "https://via.placeholder.com/40" // Placeholder image
+                image_url: item.image_url || "https://via.placeholder.com/40", // Placeholder image
               };
             })
           : [];
