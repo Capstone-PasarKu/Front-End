@@ -4,8 +4,8 @@ const API_URL = "https://pasarku-backend.vercel.app/api";
 
 export const getProducts = async () => {
   const res = await fetch(`${API_URL}/product/search`);
-  const data = await res.json();
-  return data;
+  if (!res.ok) throw new Error("Gagal mencari produk");
+  return res.json();
 };
 
 export const registerUser = async ({ email, password, name, phoneNumber, address }) => {
@@ -24,7 +24,6 @@ export const registerUser = async ({ email, password, name, phoneNumber, address
     });
     if (!res.ok) {
       const errorData = await res.json();
-      console.error("API error response:", errorData);
       throw new Error(errorData.message || `Register gagal (HTTP ${res.status})`);
     }
     return res.json();
@@ -83,23 +82,6 @@ export const getProfile = async (token) => {
   if (!res.ok) throw new Error("Gagal mengambil profil");
   return res.json();
 };
-
-// export const updateProfile = async (token, profileData) => {
-//   const formData = new FormData();
-//   Object.keys(profileData).forEach((key) => {
-//     formData.append(key, profileData[key]);
-//   });
-
-//   const res = await fetch(`${API_URL}/profile`, {
-//     method: "PUT",
-//     headers: {
-//       Authorization: `Bearer ${token}`,
-//     },
-//     body: formData,
-//   });
-//   if (!res.ok) throw new Error("Gagal memperbarui profil");
-//   return res.json();
-// };
 
 export const addMerchant = async (token, merchantData) => {
   const formData = new FormData();
@@ -199,20 +181,68 @@ export const getBuyerOrders = async (token) => {
 };
 
 export const addItem = async (token, itemData) => {
-  const formData = new FormData();
-  Object.keys(itemData).forEach((key) => {
-    formData.append(key, itemData[key]);
-  });
+  try {
+    console.log("Original itemData:", itemData);
+    
+    // Buat FormData baru
+    const formData = new FormData();
+    
+    // Append data satu per satu dengan validasi
+    if (itemData.merchantId) {
+      formData.append('merchantId', itemData.merchantId);
+    }
+    if (itemData.name) {
+      formData.append('name', itemData.name.trim());
+    }
+    if (itemData.category) {
+      formData.append('category', itemData.category);
+    }
+    if (itemData.basePrice) {
+      formData.append('basePrice', itemData.basePrice.toString());
+    }
+    if (itemData.quantity) {
+      // Pastikan quantity dikirim sebagai string angka yang valid
+      const qty = parseInt(itemData.quantity);
+      if (!isNaN(qty) && qty > 0) {
+        formData.append('quantity', qty.toString());
+      } else {
+        throw new Error('Quantity harus berupa angka positif');
+      }
+    }
+    if (itemData.photo && itemData.photo instanceof File) {
+      formData.append('photo', itemData.photo);
+    }
 
-  const res = await fetch(`${API_URL}/item`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  });
-  if (!res.ok) throw new Error("Gagal menambah barang");
-  return res.json();
+    // Debug: tampilkan semua data yang akan dikirim
+    console.log("FormData keys:", Array.from(formData.keys()));
+    console.log("FormData entries:");
+    for (let [key, value] of formData.entries()) {
+      console.log(`${key}:`, value);
+    }
+
+    const response = await fetch(`${API_URL}/item`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        // Jangan set Content-Type untuk FormData, biarkan browser yang set otomatis
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Server error response:", errorData);
+      throw new Error(errorData.error || errorData.message || "Gagal menambah barang");
+    }
+
+    const result = await response.json();
+    console.log("Success response:", result);
+    return result;
+    
+  } catch (error) {
+    console.error("Failed to add item:", error);
+    throw error;
+  }
 };
 
 export const addToCart = async (token, cartData) => {
@@ -246,7 +276,9 @@ export const getCart = async (token) => {
 export const updateItem = async (token, itemId, itemData) => {
   const formData = new FormData();
   Object.keys(itemData).forEach((key) => {
-    formData.append(key, itemData[key]);
+    if (itemData[key] !== null && itemData[key] !== undefined) {
+      formData.append(key, itemData[key]);
+    }
   });
 
   const res = await fetch(`${API_URL}/item/${itemId}`, {

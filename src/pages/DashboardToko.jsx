@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { FiPackage, FiDollarSign, FiUsers, FiStar, FiEdit2, FiPlus } from "react-icons/fi";
-import { getDashboardToko, getMerchantItems, getMerchants, addItem, updateItem, deleteItem } from "../services/api";
+import { getDashboardToko, getMerchantItems, getMerchants, getStock, addItem, updateItem, deleteItem, getUserFromToken } from "../services/api";
 
 const DashboardToko = () => {
-  const { id } = useParams(); // Ambil merchantId dari URL
+  const { id } = useParams(); // Pastikan ini sesuai dengan merchantId yang valid (e.g., eQG0MTvIzJ1CIhfJUi7g)
   const [merchant, setMerchant] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,7 +15,6 @@ const DashboardToko = () => {
     totalRevenue: 0,
     averageRating: 0,
   });
-  // State for modal and form
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentItemId, setCurrentItemId] = useState(null);
@@ -23,13 +22,12 @@ const DashboardToko = () => {
     name: "",
     category: "",
     basePrice: "",
-    image: null,
+    photo: null,
     quantity: "",
   });
   const [formError, setFormError] = useState(null);
   const [formSuccess, setFormSuccess] = useState(null);
 
-  // Ambil data dashboard toko, merchant, dan daftar barang saat komponen dimuat
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -40,7 +38,11 @@ const DashboardToko = () => {
           throw new Error("Token tidak ditemukan. Silakan login kembali.");
         }
 
-        // API Call 1: getMerchants
+        const user = getUserFromToken(token);
+        if (!user) {
+          throw new Error("Token tidak valid atau kadaluarsa. Silakan login kembali.");
+        }
+
         const merchantsData = await getMerchants(token, true);
         console.log("Merchants API Response:", merchantsData);
         const foundMerchant = merchantsData.find((m) => m.id === id);
@@ -53,7 +55,6 @@ const DashboardToko = () => {
           category: foundMerchant.category,
         });
 
-        // API Call 2: getDashboardToko
         const dashboardData = await getDashboardToko(token, id);
         console.log("Dashboard API Response:", dashboardData);
 
@@ -64,22 +65,25 @@ const DashboardToko = () => {
           averageRating: 0,
         });
 
-        // API Call 3: getMerchantItems
         const itemsData = await getMerchantItems(token, id);
         console.log("Items API Response:", itemsData);
+
+        const stockData = await getStock(id);
+        console.log("Stock API Response:", stockData);
 
         const topProducts = dashboardData.topProducts || [];
         const formattedProducts = Array.isArray(itemsData)
           ? itemsData.map((item) => {
               const topProduct = topProducts.find((tp) => tp.item.toLowerCase() === item.name.toLowerCase());
+              const stockItem = stockData.find((s) => s.itemId === item.id);
               return {
                 id: item.id,
                 name: item.name,
                 category: item.category || "",
                 price: item.basePrice || 0,
-                stock: topProduct ? topProduct.totalQuantity : 0,
+                stock: stockItem ? stockItem.quantity : topProduct ? topProduct.totalQuantity : 0,
                 is_active: true,
-                image_url: item.image_url || "https://via.placeholder.com/40",
+                image_url: item.photoUrl || "https://via.placeholder.com/40",
               };
             })
           : [];
@@ -95,120 +99,143 @@ const DashboardToko = () => {
     fetchData();
   }, [id]);
 
-  // Handle form input changes
   const handleInputChange = (e) => {
     const { name, value, files } = e.target;
-    if (name === "image") {
-      setFormData({ ...formData, image: files[0] });
+    if (name === "photo") {
+      setFormData({ ...formData, photo: files ? files[0] : null });
     } else {
       setFormData({ ...formData, [name]: value });
     }
   };
 
-  // Handle form submission (Tambah atau Edit)
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setFormError(null);
-    setFormSuccess(null);
+  e.preventDefault();
+  setFormError(null);
+  setFormSuccess(null);
 
-    // Validasi form
-    if (!formData.name || formData.name.trim() === "") {
-      setFormError("Nama produk tidak boleh kosong.");
+  // Validasi form yang lebih ketat
+  if (!formData.name || formData.name.trim() === "") {
+    setFormError("Nama produk tidak boleh kosong.");
+    return;
+  }
+  if (!formData.category) {
+    setFormError("Kategori harus dipilih.");
+    return;
+  }
+  if (!formData.basePrice || Number(formData.basePrice) < 1000) {
+    setFormError("Harga harus lebih besar dari atau sama dengan 1000.");
+    return;
+  }
+  if (!formData.quantity || Number(formData.quantity) <= 0 || isNaN(Number(formData.quantity))) {
+    setFormError("Stok harus berupa angka positif lebih besar dari 0.");
+    return;
+  }
+
+  try {
+    const token = localStorage.getItem("token");
+    console.log("Token:", token);
+    if (!token) {
+      throw new Error("Token tidak ditemukan. Silakan login kembali.");
+    }
+
+    const user = getUserFromToken(token);
+    if (!user) {
+      throw new Error("Token tidak valid atau kadaluarsa. Silakan login kembali.");
+    }
+
+    const existingProduct = products.find(
+      (product) => product.name.toLowerCase() === formData.name.toLowerCase() && !isEditMode
+    );
+    if (existingProduct) {
+      setFormError("Nama barang sudah ada. Silakan gunakan nama lain.");
       return;
     }
-    if (!formData.category) {
-      setFormError("Kategori harus dipilih.");
-      return;
-    }
-    if (!formData.basePrice || Number(formData.basePrice) < 1000) {
-      setFormError("Harga harus lebih besar dari atau sama dengan 1000.");
-      return;
-    }
-    if (!formData.quantity || Number(formData.quantity) < 1) {
-      setFormError("Stok harus lebih besar dari atau sama dengan 1.");
-      return;
-    }
 
-    try {
-      const token = localStorage.getItem("token");
-      console.log("Token:", token);
-      if (!token) {
-        throw new Error("Token tidak ditemukan. Silakan login kembali.");
-      }
+    // Buat object data yang akan dikirim (bukan FormData)
+    const itemData = {
+      merchantId: id,
+      name: formData.name.trim(),
+      category: formData.category,
+      basePrice: formData.basePrice,
+      quantity: formData.quantity, // Kirim sebagai string
+      photo: formData.photo || null
+    };
 
-      // Siapkan data untuk API, termasuk quantity
-      const itemData = new FormData();
-      itemData.append("name", formData.name);
-      itemData.append("category", formData.category);
-      itemData.append("basePrice", Number(formData.basePrice));
-      if (formData.image) {
-        itemData.append("image", formData.image);
-      }
-      itemData.append("merchantId", id);
-      itemData.append("quantity", Number(formData.quantity)); // Kirim quantity ke API
+    console.log("Data yang akan dikirim:", itemData);
 
-      console.log("Sending itemData:", Object.fromEntries(itemData));
+    let response;
+    if (isEditMode) {
+      response = await updateItem(token, currentItemId, itemData);
+      console.log("Update Item API Response:", response);
 
-      let response;
-      if (isEditMode) {
-        // API Call: updateItem
-        response = await updateItem(token, currentItemId, itemData);
-        console.log("Update Item API Response:", response);
+      setProducts(products.map((product) =>
+        product.id === currentItemId
+          ? {
+              ...product,
+              name: formData.name.trim(),
+              category: formData.category,
+              price: Number(formData.basePrice),
+              stock: Number(formData.quantity),
+              image_url: response.photoUrl || product.image_url,
+            }
+          : product
+      ));
+      setFormSuccess("Barang berhasil diperbarui!");
+    } else {
+      response = await addItem(token, itemData);
+      console.log("Add Item API Response:", response);
 
-        setProducts(products.map((product) =>
-          product.id === currentItemId
-            ? {
-                ...product,
-                name: formData.name,
-                category: formData.category,
-                price: Number(formData.basePrice),
-                stock: Number(formData.quantity), // Gunakan quantity dari form untuk state lokal
-                image_url: response.image_url || product.image_url,
-              }
-            : product
-        ));
-        setFormSuccess("Barang berhasil diperbarui!");
-      } else {
-        // API Call: addItem
-        response = await addItem(token, itemData);
-        console.log("Add Item API Response:", response);
-
-        setProducts([
-          ...products,
-          {
-            id: response.id,
-            name: formData.name,
-            category: formData.category,
-            price: Number(formData.basePrice),
-            stock: Number(formData.quantity), // Gunakan quantity dari form untuk state lokal
-            is_active: true,
-            image_url: response.image_url || "https://via.placeholder.com/40",
-          },
-        ]);
-        setStats((prevStats) => ({
-          ...prevStats,
-          totalProducts: prevStats.totalProducts + 1,
-        }));
-        setFormSuccess("Barang berhasil ditambahkan!");
-      }
-
-      setFormData({
-        name: "",
-        category: "",
-        basePrice: "",
-        image: null,
-        quantity: "",
+      // Refresh data setelah berhasil menambah item
+      const itemsData = await getMerchantItems(token, id);
+      const dashboardData = await getDashboardToko(token, id);
+      const stockData = await getStock(id);
+      const topProducts = dashboardData.topProducts || [];
+      
+      const formattedProducts = Array.isArray(itemsData)
+        ? itemsData.map((item) => {
+            const topProduct = topProducts.find((tp) => tp.item.toLowerCase() === item.name.toLowerCase());
+            const stockItem = stockData.find((s) => s.itemId === item.id);
+            return {
+              id: item.id,
+              name: item.name,
+              category: item.category || "",
+              price: item.basePrice || 0,
+              stock: stockItem ? stockItem.quantity : topProduct ? topProduct.totalQuantity : 0,
+              is_active: true,
+              image_url: item.photoUrl || "https://via.placeholder.com/40",
+            };
+          })
+        : [];
+      
+      setProducts(formattedProducts);
+      setStats({
+        totalProducts: dashboardData.topProducts?.length || 0,
+        totalOrders: (dashboardData.ordersByStatus?.completed || 0) + (dashboardData.ordersByStatus?.pending || 0),
+        totalRevenue: dashboardData.totalSales || 0,
+        averageRating: 0,
       });
-      setIsModalOpen(false);
-      setIsEditMode(false);
-      setCurrentItemId(null);
-    } catch (err) {
-      console.error("Error processing item:", err);
-      setFormError("Gagal memproses barang: " + (err.message || "Unknown error"));
-    }
-  };
 
-  // Handle edit button click
+      setFormSuccess("Barang berhasil ditambahkan!");
+    }
+
+    // Reset form
+    setFormData({
+      name: "",
+      category: "",
+      basePrice: "",
+      photo: null,
+      quantity: "",
+    });
+    setIsModalOpen(false);
+    setIsEditMode(false);
+    setCurrentItemId(null);
+    
+  } catch (err) {
+    console.error("Error processing item:", err);
+    setFormError("Gagal memproses barang: " + (err.message || "Unknown error"));
+  }
+};
+
   const handleEditClick = (product) => {
     setIsEditMode(true);
     setCurrentItemId(product.id);
@@ -216,13 +243,12 @@ const DashboardToko = () => {
       name: product.name,
       category: product.category,
       basePrice: product.price.toString(),
-      image: null,
+      photo: null,
       quantity: product.stock.toString(),
     });
     setIsModalOpen(true);
   };
 
-  // Handle delete button click
   const handleDeleteClick = async (itemId) => {
     if (!window.confirm("Apakah Anda yakin ingin menghapus barang ini?")) return;
 
@@ -232,7 +258,11 @@ const DashboardToko = () => {
         throw new Error("Token tidak ditemukan. Silakan login kembali.");
       }
 
-      // API Call: deleteItem
+      const user = getUserFromToken(token);
+      if (!user) {
+        throw new Error("Token tidak valid atau kadaluarsa. Silakan login kembali.");
+      }
+
       const response = await deleteItem(token, itemId);
       console.log("Delete Item API Response:", response);
 
@@ -266,7 +296,6 @@ const DashboardToko = () => {
   return (
     <div className="min-h-screen bg-[#F5F5DC] py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
           <div className="flex items-center justify-between">
             <div>
@@ -280,7 +309,6 @@ const DashboardToko = () => {
           </div>
         </div>
 
-        {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-xl shadow-lg p-6">
             <div className="flex items-center">
@@ -330,7 +358,6 @@ const DashboardToko = () => {
           </div>
         </div>
 
-        {/* Products Section */}
         <div className="bg-white rounded-2xl shadow-xl p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-bold text-gray-900">Daftar Produk</h2>
@@ -341,7 +368,7 @@ const DashboardToko = () => {
                   name: "",
                   category: "",
                   basePrice: "",
-                  image: null,
+                  photo: null,
                   quantity: "",
                 });
                 setIsModalOpen(true);
@@ -353,24 +380,17 @@ const DashboardToko = () => {
             </button>
           </div>
 
-          {/* Modal for Adding/Editing Product */}
           {isModalOpen && (
             <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex justify-center items-center z-50">
               <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
                 <h2 className="text-xl font-bold text-gray-900 mb-4">
                   {isEditMode ? "Edit Produk" : "Tambah Produk Baru"}
                 </h2>
-                {formError && (
-                  <div className="text-red-600 mb-4">{formError}</div>
-                )}
-                {formSuccess && (
-                  <div className="text-green-600 mb-4">{formSuccess}</div>
-                )}
+                {formError && <div className="text-red-600 mb-4">{formError}</div>}
+                {formSuccess && <div className="text-green-600 mb-4">{formSuccess}</div>}
                 <form onSubmit={handleSubmit}>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Nama Produk
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700">Nama Produk</label>
                     <input
                       type="text"
                       name="name"
@@ -381,9 +401,7 @@ const DashboardToko = () => {
                     />
                   </div>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Kategori
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700">Kategori</label>
                     <select
                       name="category"
                       value={formData.category}
@@ -400,9 +418,7 @@ const DashboardToko = () => {
                     </select>
                   </div>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Harga (Rp)
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700">Harga (Rp)</label>
                     <input
                       type="number"
                       name="basePrice"
@@ -414,26 +430,27 @@ const DashboardToko = () => {
                     />
                   </div>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Stok Awal
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700">Stok Awal</label>
                     <input
                       type="number"
                       name="quantity"
                       value={formData.quantity}
-                      onChange={handleInputChange}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value === "" || (!isNaN(value) && Number(value) >= 0)) {
+                          handleInputChange(e);
+                        }
+                      }}
                       className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-600 focus:ring focus:ring-green-600 focus:ring-opacity-50"
                       required
                       min="1"
                     />
                   </div>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Gambar Produk
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700">Gambar Produk</label>
                     <input
                       type="file"
-                      name="image"
+                      name="photo"
                       accept="image/*"
                       onChange={handleInputChange}
                       className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-green-600 file:text-white file:hover:bg-green-700"
@@ -450,7 +467,7 @@ const DashboardToko = () => {
                           name: "",
                           category: "",
                           basePrice: "",
-                          image: null,
+                          photo: null,
                           quantity: "",
                         });
                       }}
