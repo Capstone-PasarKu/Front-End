@@ -15,22 +15,27 @@ const Products = () => {
 		{ value: "buah", label: "Buah" },
 		{ value: "sayuran", label: "Sayuran" },
 		{ value: "ikan", label: "Ikan" },
-		{ value: "daging segar", label: "Daging Segar" },
 	];
 
 	const fetchProducts = async (query = "", sort = "termurah", cat = "") => {
 		setLoading(true);
 		setError(null);
 		try {
-			const data = await searchProducts(query, sort, cat);
-			const mappedProducts = data.map((item) => ({
+			const data = await searchProducts(query, sort);
+			let filteredProducts = data.map((item) => ({
 				id: item.id,
 				name: item.item.name,
 				price: item.item.basePrice,
 				image: item.merchant.photoUrl || "https://via.placeholder.com/150",
 				description: `Dijual oleh ${item.merchant.name} - Kategori: ${item.item.category}`,
+				itemCategory: item.item.category,
 			}));
-			setProducts(mappedProducts);
+			if (cat) {
+				filteredProducts = filteredProducts.filter(
+					(product) => product.itemCategory.toLowerCase() === cat.toLowerCase()
+				);
+			}
+			setProducts(filteredProducts);
 		} catch (err) {
 			setError(err.message);
 			setProducts([]);

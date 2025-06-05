@@ -105,11 +105,10 @@ export const getStock = async (merchantId) => {
   return res.json();
 };
 
-export const searchProducts = async (name = "", sortBy = "termurah", category = "") => {
+export const searchProducts = async (name = "", sortBy = "termurah") => {
   const url = new URL(`${API_URL}/product/search`);
   if (name) url.searchParams.append("name", name);
   url.searchParams.append("sortBy", sortBy);
-  if (category) url.searchParams.append("category", category);
   const res = await fetch(url);
   if (!res.ok) throw new Error("Gagal mencari produk");
   return res.json();
