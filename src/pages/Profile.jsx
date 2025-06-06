@@ -20,7 +20,7 @@ const Profile = () => {
   const [error, setError] = useState("");
   const [profileImage, setProfileImage] = useState("/src/assets/logo.jpeg");
   const [showAddToko, setShowAddToko] = useState(false);
-  const [hasStore, setHasStore] = useState(false); // New state to track if user has a store
+  const [hasStore, setHasStore] = useState(false);
   const [tokoForm, setTokoForm] = useState({
     name: "",
     category: "",
@@ -46,14 +46,12 @@ const Profile = () => {
       setError("");
 
       try {
-        // Decode token
         const userData = getUserFromToken(storedToken);
         if (!userData) {
           throw new Error("Token tidak valid atau kedaluwarsa");
         }
         console.log("Token user data:", userData);
 
-        // Fetch profile from backend
         let profileData = {};
         try {
           profileData = await getProfile(storedToken);
@@ -62,7 +60,6 @@ const Profile = () => {
           console.warn("Failed to fetch profile from API:", e.message);
         }
 
-        // Merge data, prioritize token email
         const mergedUserData = {
           uid: userData.uid || userData.sub || "unknown",
           email: userData.email || profileData.email || "Email tidak tersedia",
@@ -75,7 +72,6 @@ const Profile = () => {
 
         setUser(mergedUserData);
 
-        // Check if user has a store
         try {
           const response = await fetch("https://pasarku-backend.vercel.app/api/merchants?owned=true", {
             method: "GET",
@@ -85,7 +81,6 @@ const Profile = () => {
           });
           if (!response.ok) throw new Error("Gagal memeriksa status toko");
           const data = await response.json();
-          // Assuming the API returns an array of merchants; if it returns at least one, the user has a store
           setHasStore(data.length > 0);
         } catch (e) {
           console.error("Error checking store status:", e);
@@ -102,42 +97,113 @@ const Profile = () => {
   useEffect(() => {
     let map, marker;
     if (showAddToko) {
-      const initialLatLng = [-2.972545, 104.774436];
-      map = L.map("map").setView(initialLatLng, 13);
+      // Request geolocation when the form is opened
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setTokoForm((prev) => ({
+            ...prev,
+            lat: latitude.toString(),
+            lon: longitude.toString(),
+          }));
 
-      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
-        maxZoom: 19,
-        attribution:
-          '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      }).addTo(map);
+          // Initialize map with user's location
+          map = L.map("map").setView([latitude, longitude], 13);
 
-      delete L.Icon.Default.prototype._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-        iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-      });
+          L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution:
+              '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          }).addTo(map);
 
-      marker = L.marker(initialLatLng, { draggable: true }).addTo(map);
+          delete L.Icon.Default.prototype._getIconUrl;
+          L.Icon.Default.mergeOptions({
+            iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+            iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+            shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+          });
 
-      marker.on("dragend", function (event) {
-        const position = event.target.getLatLng();
-        setTokoForm((prev) => ({
-          ...prev,
-          lat: position.lat.toString(),
-          lon: position.lng.toString(),
-        }));
-      });
+          marker = L.marker([latitude, longitude], { draggable: true }).addTo(map);
 
-      map.on("click", function (e) {
-        const { lat, lng } = e.latlng;
-        marker.setLatLng([lat, lng]);
-        setTokoForm((prev) => ({
-          ...prev,
-          lat: lat.toString(),
-          lon: lng.toString(),
-        }));
-      });
+          marker.on("dragend", function (event) {
+            const position = event.target.getLatLng();
+            setTokoForm((prev) => ({
+              ...prev,
+              lat: position.lat.toString(),
+              lon: position.lng.toString(),
+            }));
+          });
+
+          map.on("click", function (e) {
+            const { lat, lng } = e.latlng;
+            marker.setLatLng([lat, lng]);
+            setTokoForm((prev) => ({
+              ...prev,
+              lat: lat.toString(),
+              lon: lng.toString(),
+            }));
+          });
+        },
+        (err) => {
+          console.warn("Geolocation error:", err.message);
+          // Fallback to default location if geolocation fails
+          const initialLatLng = [-2.972545, 104.774436];
+          setTokoForm((prev) => ({
+            ...prev,
+            lat: initialLatLng[0].toString(),
+            lon: initialLatLng[1].toString(),
+          }));
+
+          map = L.map("map").setView(initialLatLng, 13);
+
+          L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 19,
+            attribution:
+              '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+          }).addTo(map);
+
+          delete L.Icon.Default.prototype._getIconUrl;
+          L.Icon.Default.mergeOptions({
+            iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+            iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+            shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+          });
+
+          marker = L.marker(initialLatLng, { draggable: true }).addTo(map);
+
+          marker.on("dragend", function (event) {
+            const position = event.target.getLatLng();
+            setTokoForm((prev) => ({
+              ...prev,
+              lat: position.lat.toString(),
+              lon: position.lng.toString(),
+            }));
+          });
+
+          map.on("click", function (e) {
+            const { lat, lng } = e.latlng;
+            marker.setLatLng([lat, lng]);
+            setTokoForm((prev) => ({
+              ...prev,
+              lat: lat.toString(),
+              lon: lng.toString(),
+            }));
+          });
+
+          Swal.fire({
+            title: "Lokasi Tidak Diizinkan",
+            text: "Akses lokasi ditolak. Gunakan lokasi default atau pilih lokasi secara manual di peta.",
+            icon: "warning",
+            confirmButtonColor: "#15803d",
+            confirmButtonText: "OK",
+          });
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000,
+          maximumAge: 0,
+        }
+      );
     }
 
     return () => {
@@ -210,7 +276,7 @@ const Profile = () => {
       }).then(() => {
         setTokoForm({ name: "", category: "", lat: "", lon: "", photo: null });
         setShowAddToko(false);
-        setHasStore(true); // Set hasStore to true after successfully adding a store
+        setHasStore(true);
 
         const merchantId = result.data?.id || result.id || result.merchantId;
         if (merchantId) {
@@ -227,14 +293,14 @@ const Profile = () => {
 
   const handleCopyToken = () => {
     navigator.clipboard.writeText(token);
-    setCopywiccess("Token berhasil disalin!");
+    setCopySuccess("Token berhasil disalin!");
     setTimeout(() => setCopySuccess(""), 2000);
   };
 
   const handleShowAddToko = () => {
     Swal.fire({
       title: "Tambah Toko Baru",
-      text办理: "Apakah Anda yakin ingin menambahkan toko baru?",
+      text: "Apakah Anda yakin ingin menambahkan toko baru?",
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#15803d",
@@ -394,7 +460,7 @@ const Profile = () => {
               </div>
             </div>
 
-            {!hasStore && ( // Conditionally render the button
+            {!hasStore && (
               <div className="my-4">
                 <button
                   onClick={handleShowAddToko}
