@@ -20,6 +20,7 @@ const Profile = () => {
   const [error, setError] = useState("");
   const [profileImage, setProfileImage] = useState("/src/assets/logo.jpeg");
   const [showAddToko, setShowAddToko] = useState(false);
+  const [hasStore, setHasStore] = useState(false); // New state to track if user has a store
   const [tokoForm, setTokoForm] = useState({
     name: "",
     category: "",
@@ -50,16 +51,15 @@ const Profile = () => {
         if (!userData) {
           throw new Error("Token tidak valid atau kedaluwarsa");
         }
-        console.log("Token user data:", userData); // Debug token payload
+        console.log("Token user data:", userData);
 
         // Fetch profile from backend
         let profileData = {};
         try {
           profileData = await getProfile(storedToken);
-          console.log("Profile API response:", profileData); // Debug API response
+          console.log("Profile API response:", profileData);
         } catch (e) {
           console.warn("Failed to fetch profile from API:", e.message);
-          // Continue with token data if API fails
         }
 
         // Merge data, prioritize token email
@@ -74,6 +74,22 @@ const Profile = () => {
         };
 
         setUser(mergedUserData);
+
+        // Check if user has a store
+        try {
+          const response = await fetch("https://pasarku-backend.vercel.app/api/merchants?owned=true", {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${storedToken}`,
+            },
+          });
+          if (!response.ok) throw new Error("Gagal memeriksa status toko");
+          const data = await response.json();
+          // Assuming the API returns an array of merchants; if it returns at least one, the user has a store
+          setHasStore(data.length > 0);
+        } catch (e) {
+          console.error("Error checking store status:", e);
+        }
       } catch (e) {
         console.error("Error fetching profile:", e);
         setError("Gagal membaca data pengguna: " + e.message);
@@ -95,7 +111,6 @@ const Profile = () => {
           '© <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>',
       }).addTo(map);
 
-      // Fix Leaflet icon issue
       delete L.Icon.Default.prototype._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -195,6 +210,7 @@ const Profile = () => {
       }).then(() => {
         setTokoForm({ name: "", category: "", lat: "", lon: "", photo: null });
         setShowAddToko(false);
+        setHasStore(true); // Set hasStore to true after successfully adding a store
 
         const merchantId = result.data?.id || result.id || result.merchantId;
         if (merchantId) {
@@ -211,14 +227,14 @@ const Profile = () => {
 
   const handleCopyToken = () => {
     navigator.clipboard.writeText(token);
-    setCopySuccess("Token berhasil disalin!");
+    setCopywiccess("Token berhasil disalin!");
     setTimeout(() => setCopySuccess(""), 2000);
   };
 
   const handleShowAddToko = () => {
     Swal.fire({
       title: "Tambah Toko Baru",
-      text: "Apakah Anda yakin ingin menambahkan toko baru?",
+      text办理: "Apakah Anda yakin ingin menambahkan toko baru?",
       icon: "question",
       showCancelButton: true,
       confirmButtonColor: "#15803d",
@@ -255,7 +271,7 @@ const Profile = () => {
     return null;
   }
 
-  console.log("Rendering user state:", user); // Debug user state
+  console.log("Rendering user state:", user);
 
   return (
     <div className="min-h-screen bg-[#F5F5DC] py-12 px-4 sm:px-6 lg:px-8">
@@ -378,14 +394,16 @@ const Profile = () => {
               </div>
             </div>
 
-            <div className="my-4">
-              <button
-                onClick={handleShowAddToko}
-                className="bg-green-700 text-white px-6 py-2 rounded-lg hover:bg-green-800 transition"
-              >
-                + Tambah Toko
-              </button>
-            </div>
+            {!hasStore && ( // Conditionally render the button
+              <div className="my-4">
+                <button
+                  onClick={handleShowAddToko}
+                  className="bg-green-700 text-white px-6 py-2 rounded-lg hover:bg-green-800 transition"
+                >
+                  + Tambah Toko
+                </button>
+              </div>
+            )}
 
             {showAddToko && (
               <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
