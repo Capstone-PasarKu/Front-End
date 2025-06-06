@@ -251,14 +251,19 @@ export const addToCart = async (token, cartData) => {
     formData.append(key, cartData[key]);
   });
 
-  const res = await fetch(`${API_URL}/cart`, {
+  const res = await fetch(`${API_URL}/api/cart`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,
     },
     body: formData,
   });
-  if (!res.ok) throw new Error("Gagal menambah barang ke keranjang");
+
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || "Gagal menambah barang ke keranjang");
+  }
+
   return res.json();
 };
 

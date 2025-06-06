@@ -1,134 +1,67 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { FiTrash2 } from "react-icons/fi";
-import { useCart } from "../contexts/CartContext"; // Tambahkan ini
+import { useEffect, useState } from "react";
+import { FiTrash } from "react-icons/fi";
+import { getCart } from "../services/api";
 
 const Cart = () => {
-  // Sample cart state (replace with actual cart data source, e.g., context, localStorage, or API)
-  const [cartItems, setCartItems] = useState([
-    {
-      id: 1,
-      name: "Beras Premium",
-      price: 65000,
-      image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80",
-      description: "Dijual oleh Toko Sumber Rejeki - Kategori: Sembako",
-      quantity: 2,
-    },
-    {
-      id: 2,
-      name: "Minyak Goreng 2L",
-      price: 32000,
-      image: "https://images.unsplash.com/photo-1519864600265-abb23847ef2c?auto=format&fit=crop&w=400&q=80",
-      description: "Dijual oleh Toko Makmur Jaya - Kategori: Minyak",
-      quantity: 1,
-    },
-  ]);
+  const [cartItems, setCartItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Calculate total price
-  const totalPrice = cartItems.reduce((total, item) => total + item.price * item.quantity, 0);
-
-  // Handle quantity change
-  const handleQuantityChange = (id, newQuantity) => {
-    if (newQuantity < 1) return; // Prevent quantity less than 1
-    setCartItems(
-      cartItems.map((item) =>
-        item.id === id ? { ...item, quantity: newQuantity } : item
-      )
-    );
+  const fetchCart = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const token = localStorage.getItem("token"); // Assuming token is stored in localStorage
+      const data = await getCart(token);
+      setCartItems(data); // Adjust based on the API response structure
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Remove item from cart
-  const handleRemoveItem = (id) => {
-    setCartItems(cartItems.filter((item) => item.id !== id));
+  useEffect(() => {
+    fetchCart();
+  }, []);
+
+  // Handle remove item (placeholder)
+  const handleRemoveFromCart = (itemId) => {
+    // Implement remove logic here
+    console.log(`Removed item ${itemId} from cart`);
   };
+
+  if (loading) return <p className="text-center text-gray-500">Memuat keranjang...</p>;
+  if (error) return <p className="text-center text-red-500">Error: {error}</p>;
+  if (!cartItems || cartItems.length === 0) return <p className="text-center text-gray-500">Keranjang kosong</p>;
 
   return (
     <div className="p-6 min-h-screen bg-[#F5F5DC]">
-      <h2 className="text-3xl font-extrabold text-[#1C5532] mb-8 text-center drop-shadow">
-        Keranjang Belanja
-      </h2>
-
-      {/* Cart Items */}
-      {cartItems.length === 0 ? (
-        <div className="text-center text-[#1C5532]">
-          <p className="text-lg mb-4">Keranjang Anda kosong.</p>
-          <Link
-            to="/products"
-            className="inline-block bg-[#76AB51] text-[#F5F5DC] px-6 py-3 rounded-xl font-medium hover:bg-[#1C5532] transition duration-300 border border-[#76AB51]"
-          >
-            Lihat Produk
-          </Link>
-        </div>
-      ) : (
-        <div className="max-w-6xl mx-auto">
-          {/* Cart Items List */}
-          <div className="space-y-6">
-            {cartItems.map((item) => (
-              <div
-                key={item.id}
-                className="bg-white p-6 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 flex items-center gap-4"
-              >
-                <img
-                  src={item.image}
-                  alt={item.name}
-                  className="w-24 h-24 object-cover rounded-lg border border-[#76AB51]"
-                />
-                <div className="flex-1">
-                  <h3 className="text-lg font-bold text-[#1C5532] mb-2">
-                    {item.name}
-                  </h3>
-                  <p className="text-gray-500 text-sm mb-2 line-clamp-2">
-                    {item.description}
-                  </p>
-                  <p className="text-[#1C5532] font-semibold text-xl">
-                    Rp{(item.price * item.quantity).toLocaleString("id-ID")}
-                  </p>
-                  <div className="flex items-center gap-4 mt-2">
-                    <button
-                      onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
-                      className="bg-[#E57B2D] text-[#F5F5DC] px-3 py-1 rounded-lg hover:bg-[#76AB51] transition duration-300 border border-[#E57B2D]"
-                    >
-                      -
-                    </button>
-                    <span className="text-[#1C5532] font-medium">{item.quantity}</span>
-                    <button
-                      onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
-                      className="bg-[#E57B2D] text-[#F5F5DC] px-3 py-1 rounded-lg hover:bg-[#76AB51] transition duration-300 border border-[#E57B2D]"
-                    >
-                      +
-                    </button>
-                    <button
-                      onClick={() => handleRemoveItem(item.id)}
-                      className="ml-4 text-red-500 hover:text-red-700 transition duration-300"
-                    >
-                      <FiTrash2 className="text-xl" />
-                    </button>
-                  </div>
-                </div>
+      <h2 className="text-3xl font-extrabold text-[#1C5532] mb-8 text-center drop-shadow">Keranjang Belanja</h2>
+      <div className="space-y-6">
+        {cartItems.map((item) => (
+          <div key={item.id} className="bg-white p-6 rounded-xl shadow-lg flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <img
+                src={item.item.photoUrl || "https://via.placeholder.com/150"}
+                alt={item.item.name}
+                className="w-20 h-20 object-cover rounded-lg"
+              />
+              <div>
+                <h3 className="text-lg font-bold text-[#1C5532]">{item.item.name}</h3>
+                <p className="text-gray-500">Rp{item.item.basePrice.toLocaleString("id-ID")}</p>
+                <p className="text-gray-500">Jumlah: {item.quantity}</p>
               </div>
-            ))}
-          </div>
-
-          {/* Cart Summary */}
-          <div className="mt-8 bg-white p-6 rounded-xl shadow-lg">
-            <h3 className="text-xl font-bold text-[#1C5532] mb-4">
-              Ringkasan Belanja
-            </h3>
-            <div className="flex justify-between text-[#1C5532] mb-4">
-              <span>Total Harga</span>
-              <span className="font-semibold text-xl">
-                Rp{totalPrice.toLocaleString("id-ID")}
-              </span>
             </div>
-            <Link
-              to="/checkout"
-              className="block w-full bg-[#1C5532] text-[#F5F5DC] px-6 py-3 rounded-xl font-medium hover:bg-[#76AB51] transition duration-300 text-center border border-[#1C5532]"
+            <button
+              onClick={() => handleRemoveFromCart(item.id)}
+              className="text-red-500 hover:text-red-700"
             >
-              Lanjutkan ke Pembayaran
-            </Link>
+              <FiTrash className="text-2xl" />
+            </button>
           </div>
-        </div>
-      )}
+        ))}
+      </div>
     </div>
   );
 };

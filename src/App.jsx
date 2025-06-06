@@ -11,8 +11,8 @@ import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Products from "./pages/Products";  
 import Footer from "./components/Footer";
-import ProductDetail from "./pages/ProductDetail";
 import DaftarPesanan from "./pages/DaftarPesanan";
+import Cart from "./pages/cart";
 
 function App() {
   return (
@@ -30,8 +30,7 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/products" element={<Products />} />
-          {/* Tambahkan route lainnya sesuai kebutuhan */}
-          <Route path="/product/:id" element={<ProductDetail />} />
+          <Route path="/cart" element={<Cart/>} />
 				{/* Tambah rute lain, misal /order, kalo perlu */}
         </Routes>
          

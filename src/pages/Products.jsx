@@ -11,6 +11,8 @@ const Products = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null); // State for modal
+  const [cartLoading, setCartLoading] = useState(false); // Loading state for cart action
+  const [cartMessage, setCartMessage] = useState(""); // Message for cart action feedback
   const { addToCart } = useCart();
 
   const categories = [
@@ -22,39 +24,38 @@ const Products = () => {
     { value: "daging", label: "Daging" },
   ];
 
-  const fetchProducts = async (query = "", sort = "termurah", cat = "") => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await searchProducts(query, sort);
-      let filteredProducts = data.map((item) => ({
-        id: item.id,
-        name: item.item.name,
-        price: item.item.basePrice,
-        image: item.item.photoUrl || "https://via.placeholder.com/150",
-        description: `Dijual oleh ${item.merchant.name} - Kategori: ${item.item.category}`,
-        itemCategory: item.item.category,
-      }));
-      if (cat) {
-        filteredProducts = filteredProducts.filter(
-          (product) => product.itemCategory.toLowerCase() === cat.toLowerCase()
-        );
-      }
-      setProducts(filteredProducts);
-    } catch (err) {
-      setError(err.message);
-      setProducts([]);
-    } finally {
-      setLoading(false);
+ const fetchProducts = async (query = "", sort = "termurah", cat = "") => {
+  setLoading(true);
+  setError(null);
+  try {
+    const data = await searchProducts(query, sort);
+    let filteredProducts = data.map((item) => ({
+      id: item.id,
+      name: item.item.name,
+      price: item.item.basePrice,
+      image: item.item.photoUrl || "https://via.placeholder.com/150",
+      description: `Dijual oleh ${item.merchant.name} - Kategori: ${item.item.category}`,
+      itemCategory: item.item.category,
+      merchantId: item.merchant.id, // Simpan merchantId langsung
+    }));
+    if (cat) {
+      filteredProducts = filteredProducts.filter(
+        (product) => product.itemCategory.toLowerCase() === cat.toLowerCase()
+      );
     }
-  };
+    setProducts(filteredProducts);
+  } catch (err) {
+    setError(err.message);
+    setProducts([]);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  // Ambil produk awal saat komponen dimuat
   useEffect(() => {
     fetchProducts(searchQuery, sortBy, category);
   }, [sortBy, category]);
 
-  // Handle perubahan input pencarian dengan debouncing
   const handleSearch = (e) => {
     const query = e.target.value;
     setSearchQuery(query);
@@ -64,38 +65,56 @@ const Products = () => {
     return () => clearTimeout(debounce);
   };
 
-  // Handle klik tombol pencarian
   const handleSearchClick = () => {
     fetchProducts(searchQuery, sortBy, category);
   };
 
-  // Handle perubahan sort
   const handleSortChange = (e) => {
     const newSort = e.target.value;
     setSortBy(newSort);
   };
 
-  // Handle perubahan kategori
   const handleCategoryChange = (e) => {
     const newCategory = e.target.value;
     setCategory(newCategory);
   };
 
-  // Open modal with selected product
   const openModal = (product) => {
     setSelectedProduct(product);
   };
 
-  // Close modal
   const closeModal = () => {
     setSelectedProduct(null);
   };
 
-  // Handle add to cart (placeholder for now)
-  const handleAddToCart = (product) => {
-    console.log(`Added ${product.name} to cart`);
-    // Add logic to update cart state (e.g., context, localStorage, or API)
-  };
+const handleAddToCart = async (product) => {
+  setCartLoading(true);
+  setCartMessage("");
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      throw new Error("Token tidak ditemukan. Silakan login kembali.");
+    }
+
+    const cartData = {
+      itemId: product.id,
+      quantity: 1,
+      merchantId: product.merchantId, // Ambil dari merchantId langsung
+    };
+
+    // Log untuk debugging
+    console.log("Mengirim data ke API:", cartData);
+
+    const response = await addToCart(token, cartData);
+    setCartMessage(`Berhasil ditambahkan ke keranjang! ID: ${response.id}`);
+  } catch (error) {
+    console.error("Gagal menambah ke keranjang:", error);
+    setCartMessage(`Gagal menambah barang ke keranjang: ${error.message}`);
+  } finally {
+    setCartLoading(false);
+    setTimeout(() => setCartMessage(""), 5000);
+  }
+};
 
   return (
     <div className="p-6 min-h-screen bg-[#F5F5DC]">
@@ -103,7 +122,6 @@ const Products = () => {
         Katalog Produk
       </h2>
 
-      {/* Seksi Pencarian dan Filter */}
       <section className="py-6 bg-[#F5F5DC]">
         <div className="container mx-auto px-4">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row gap-4 items-center">
@@ -145,14 +163,12 @@ const Products = () => {
         </div>
       </section>
 
-      {/* Status Loading dan Error */}
       {loading && <p className="text-center text-gray-500">Memuat produk...</p>}
       {error && <p className="text-center text-red-500">Error: {error}</p>}
       {!loading && !error && products.length === 0 && (
         <p className="text-center text-gray-500">Tidak ada produk ditemukan</p>
       )}
 
-      {/* Grid Produk */}
       {products.length > 0 && (
         <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-8">
           {products.map((product) => (
@@ -187,12 +203,9 @@ const Products = () => {
         </div>
       )}
 
-      {/* Modal for Product Details */}
       {selectedProduct && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          {/* Modal Container */}
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl p-8 relative">
-            {/* Tombol Close */}
             <button
               onClick={closeModal}
               className="absolute top-5 right-5 text-gray-400 hover:text-red-500 focus:outline-none"
@@ -202,25 +215,18 @@ const Products = () => {
             </button>
 
             <div className="flex flex-col md:flex-row gap-8 items-center">
-              {/* Gambar Produk */}
               <div className="flex-shrink-0">
                 <img
-                  src={
-                    selectedProduct.image || "https://via.placeholder.com/300"
-                  }
+                  src={selectedProduct.image || "https://via.placeholder.com/300"}
                   alt={selectedProduct.name || "Gambar Produk"}
                   className="w-56 h-56 object-cover rounded-xl border-4 border-[#76AB51] shadow-md"
                 />
               </div>
 
-              {/* Informasi Produk */}
               <div className="flex-grow text-center md:text-left">
-                {/* Nama Produk */}
                 <h3 className="text-3xl font-bold text-[#1C5532] mb-2">
                   {selectedProduct.name}
                 </h3>
-
-                {/* Penjual dan Kategori */}
                 <div className="text-gray-600 text-base flex items-center justify-center md:justify-start gap-2 mb-4">
                   <FiUser className="text-gray-400" />
                   <span className="font-medium">
@@ -232,22 +238,30 @@ const Products = () => {
                     {selectedProduct.category || "buah"}
                   </span>
                 </div>
-
-                {/* Harga Produk */}
                 <p className="text-[#1C5532] text-2xl font-semibold mb-6">
                   Rp{selectedProduct.price.toLocaleString("id-ID")}
                 </p>
-
-                {/* Tombol Tambah ke Keranjang */}
                 <div className="flex justify-center md:justify-start">
                   <button
-                    onClick={() => addToCart(selectedProduct)}
+                    onClick={() => handleAddToCart(selectedProduct)}
                     className="flex items-center gap-2 bg-[#76AB51] hover:bg-[#F0A04B] text-white px-8 py-3 rounded-xl font-semibold transition-colors duration-300"
+                    disabled={cartLoading}
                   >
-                    <FiShoppingCart className="text-2xl" />
-                    Tambah ke Keranjang
+                    {cartLoading ? (
+                      <span className="animate-pulse">Memproses...</span>
+                    ) : (
+                      <>
+                        <FiShoppingCart className="text-2xl" />
+                        Tambah ke Keranjang
+                      </>
+                    )}
                   </button>
                 </div>
+                {cartMessage && (
+                  <p className={`mt-4 text-center ${cartMessage.includes("Gagal") ? "text-red-500" : "text-green-500"}`}>
+                    {cartMessage}
+                  </p>
+                )}
               </div>
             </div>
           </div>
