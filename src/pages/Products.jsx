@@ -16,8 +16,10 @@ const Products = () => {
   const categories = [
     { value: "", label: "Semua Kategori" },
     { value: "buah", label: "Buah" },
-    { value: "sayuran", label: "Sayuran" },
-    { value: "ikan", label: "Ikan" },
+    { value: "sayur", label: "Sayur" },
+    { value: "seafood", label: "Seafood" },
+    { value: "rempah", label: "Rempah" },
+    { value: "daging", label: "Daging" },
   ];
 
   const fetchProducts = async (query = "", sort = "termurah", cat = "") => {

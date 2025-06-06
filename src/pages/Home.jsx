@@ -15,6 +15,9 @@ import {
 } from "react-icons/fi";
 import { searchProducts } from "../services/api"; // Sesuaikan path ke file API service
 import { useCart } from "../contexts/CartContext";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import "leaflet/dist/leaflet.css";
+import L from "leaflet";
 
 const Home = () => {
   const [featuredProducts, setFeaturedProducts] = useState([]);
@@ -24,6 +27,7 @@ const Home = () => {
   const [searchQuery, setSearchQuery] = useState(""); // State for search input
   const [selectedCategory, setSelectedCategory] = useState(""); // State for selected category
   const { addToCart } = useCart();
+  const [merchants, setMerchants] = useState([]);
 
   const categories = [
     { value: "", label: "Semua" },
@@ -76,6 +80,21 @@ const Home = () => {
 
     return () => clearTimeout(debounce);
   }, [searchQuery]);
+
+  // Fetch merchants for map
+  useEffect(() => {
+    fetch("https://pasarku-backend.vercel.app/api/merchants")
+      .then((res) => res.json())
+      .then((data) => setMerchants(data))
+      .catch(() => setMerchants([]));
+  }, []);
+
+  const markerIcon = L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/854/854878.png", // Ganti dengan icon yang lebih menarik jika mau
+    iconSize: [40, 40],
+    iconAnchor: [20, 40],
+    popupAnchor: [0, -36],
+  });
 
   // Handle search input change
   const handleSearchChange = (e) => {
@@ -199,7 +218,10 @@ const Home = () => {
           {!loading && !error && featuredProducts.length === 0 && (
             <p className="text-center text-gray-500">
               Tidak ada produk ditemukan untuk pencarian "
-              {searchQuery || categories.find((cat) => cat.value === selectedCategory)?.label || "Semua"}
+              {searchQuery ||
+                categories.find((cat) => cat.value === selectedCategory)
+                  ?.label ||
+                "Semua"}
               "
             </p>
           )}
@@ -410,6 +432,89 @@ const Home = () => {
               Lihat Produk
             </Link>
           </div>
+        </div>
+      </div>
+
+      {/* Map Section */}
+      <div className="bg-[#F5F5DC] py-16 flex flex-col items-center">
+        <h2 className="text-3xl font-bold text-[#1C5532] mb-2 text-center">
+          Temukan Pasar & Pedagang Terdekat
+        </h2>
+        <p className="text-[#1C5532] mb-8 text-center max-w-2xl">
+          Jelajahi lokasi pasar tradisional dan pedagang yang telah bergabung
+          dengan <span className="font-bold text-[#76AB51]">PasarKu</span>. Klik
+          marker untuk info detail dan foto merchant!
+        </p>
+        <div className="w-full max-w-4xl rounded-2xl overflow-hidden shadow-2xl border-2 border-[#76AB51] bg-white">
+          <MapContainer
+            center={[-6.3549, 106.8277]}
+            zoom={7}
+            style={{ height: "420px", width: "100%" }}
+            scrollWheelZoom={true}
+            className="z-0"
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://osm.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            {merchants.length === 0 && (
+              <div className="absolute left-0 right-0 top-0 bottom-0 flex items-center justify-center z-10">
+                <span className="bg-white px-4 py-2 rounded shadow text-[#1C5532]">
+                  Data merchant belum tersedia
+                </span>
+              </div>
+            )}
+            {merchants.map((merchant) =>
+              merchant.location?.lat && merchant.location?.lng ? (
+                <Marker
+                  key={merchant.id}
+                  position={[merchant.location.lat, merchant.location.lng]}
+                  icon={markerIcon}
+                >
+                  <Popup>
+                    <div className="text-center min-w-[180px]">
+                      {merchant.photoUrl ? (
+                        <img
+                          src={merchant.photoUrl}
+                          alt={merchant.name}
+                          className="w-20 h-20 object-cover rounded-full mx-auto mb-2 border-2 border-[#76AB51]"
+                        />
+                      ) : (
+                        <div className="w-20 h-20 rounded-full bg-[#F5F5DC] flex items-center justify-center mx-auto mb-2 border-2 border-[#76AB51] text-[#76AB51]">
+                          <FiUser size={32} />
+                        </div>
+                      )}
+                      <strong className="block text-lg text-[#1C5532] mb-1">
+                        {merchant.name}
+                      </strong>
+                      <span
+                        className={`inline-block px-2 py-1 rounded text-xs font-semibold mb-1 ${
+                          merchant.category.toLowerCase() === "buah"
+                            ? "bg-green-100 text-green-700"
+                            : merchant.category.toLowerCase() === "daging"
+                            ? "bg-red-100 text-red-700"
+                            : merchant.category.toLowerCase() === "ikan"
+                            ? "bg-blue-100 text-blue-700"
+                            : merchant.category.toLowerCase() === "sayuran"
+                            ? "bg-lime-100 text-lime-700"
+                            : "bg-gray-100 text-gray-700"
+                        }`}
+                      >
+                        {merchant.category}
+                      </span>
+                      <div className="text-xs text-gray-500 mb-1">
+                        Lat: {merchant.location.lat.toFixed(4)}, Lng:{" "}
+                        {merchant.location.lng.toFixed(4)}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        ID: {merchant.id.slice(0, 8)}...
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              ) : null
+            )}
+          </MapContainer>
         </div>
       </div>
     </div>
