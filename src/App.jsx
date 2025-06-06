@@ -12,6 +12,8 @@ import Contact from "./pages/Contact";
 import Products from "./pages/Products";  
 import Footer from "./components/Footer";
 import ProductDetail from "./pages/ProductDetail";
+import DaftarPesanan from "./pages/DaftarPesanan";
+
 function App() {
   return (
     <Router>
@@ -23,6 +25,7 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/dashboard-toko/:id" element={<DashboardToko />} />
+          <Route path="/dashboard-toko/:id/orders" element={<DaftarPesanan />} />
           <Route path="/quality-check" element={<QualityCheck />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />

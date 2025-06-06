@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
-import { FiPackage, FiDollarSign, FiUsers, FiStar, FiEdit2, FiPlus } from "react-icons/fi";
+import { useParams, Link } from "react-router-dom";
+import { FiPackage, FiDollarSign, FiUsers, FiStar, FiEdit2, FiPlus, FiList } from "react-icons/fi";
 import { getDashboardToko, getMerchantItems, getMerchants, getStock, addItem, updateItem, deleteItem, getUserFromToken } from "../services/api";
 import Swal from "sweetalert2";
 
@@ -114,7 +114,6 @@ const DashboardToko = () => {
     setFormError(null);
     setFormSuccess(null);
 
-    // Add SweetAlert2 confirmation dialog
     const confirmationMessage = isEditMode
       ? `Apakah Anda yakin ingin memperbarui produk "${formData.name}"?`
       : `Apakah Anda yakin ingin menambahkan produk "${formData.name}"?`;
@@ -124,17 +123,16 @@ const DashboardToko = () => {
       text: confirmationMessage,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonColor: '#22c55e', // Green color to match your theme
+      confirmButtonColor: '#22c55e',
       cancelButtonColor: '#d33',
       confirmButtonText: 'Ya, Simpan',
       cancelButtonText: 'Batal',
     });
 
     if (!result.isConfirmed) {
-      return; // If user cancels, stop the submission
+      return;
     }
 
-    // Validasi form yang lebih ketat
     if (!formData.name || formData.name.trim() === "") {
       setFormError("Nama produk tidak boleh kosong.");
       return;
@@ -337,10 +335,19 @@ const DashboardToko = () => {
               <h1 className="text-2xl font-bold text-gray-900">{merchant?.name || "Nama Toko Kosong"}</h1>
               <p className="text-gray-600">{merchant?.category || "Kategori Kosong"}</p>
             </div>
-            <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
-              <FiEdit2 className="mr-2" />
-              Edit Toko
-            </button>
+            <div className="flex space-x-4">
+              <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
+                <FiEdit2 className="mr-2" />
+                Edit Toko
+              </button>
+              <Link
+                to={`/dashboard-toko/${id}/orders`}
+                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
+              >
+                <FiList className="mr-2" />
+                Daftar Pesanan
+              </Link>
+            </div>
           </div>
         </div>
 
