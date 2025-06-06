@@ -359,3 +359,17 @@ export const getMerchantDashboard = async (token, merchantId) => {
   if (!res.ok) throw new Error("Gagal mengambil dashboard");
   return res.json();
 };
+
+// Tambahan fungsi baru untuk mengirim pesan
+export const sendMessage = async (token, { storeName, message }) => {
+  const res = await fetch(`${API_URL}/send-message`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ storeName, message }),
+  });
+  if (!res.ok) throw new Error("Gagal mengirim pesan");
+  return res.json();
+};

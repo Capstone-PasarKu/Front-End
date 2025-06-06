@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { FiSend } from "react-icons/fi";
+import { getMerchants, sendMessage, getUserFromToken } from "../services/api";
 
 const Contact = () => {
   const [formData, setFormData] = useState({
@@ -13,14 +14,34 @@ const Contact = () => {
   const [merchants, setMerchants] = useState([]);
   const [merchantLoading, setMerchantLoading] = useState(true);
   const [merchantError, setMerchantError] = useState(null);
+  const [token, setToken] = useState(null);
 
-  // Fetch merchants from API
+  // Ambil token dari localStorage dan validasi
+  useEffect(() => {
+    const fetchToken = () => {
+      const storedToken = localStorage.getItem("token");
+      if (!storedToken) {
+        setError("Anda harus login terlebih dahulu untuk mengirim pesan.");
+        return;
+      }
+
+      const user = getUserFromToken(storedToken);
+      if (!user) {
+        setError("Token tidak valid atau kadaluarsa. Silakan login kembali.");
+        localStorage.removeItem("token");
+        return;
+      }
+
+      setToken(storedToken);
+    };
+    fetchToken();
+  }, []);
+
+  // Fetch daftar toko (merchants)
   useEffect(() => {
     const fetchMerchants = async () => {
       try {
-        const response = await fetch("https://pasarku-backend.vercel.app/api/merchants");
-        if (!response.ok) throw new Error("Failed to fetch merchants");
-        const data = await response.json();
+        const data = await getMerchants(token);
         setMerchants(data);
         setMerchantLoading(false);
       } catch (err) {
@@ -28,8 +49,12 @@ const Contact = () => {
         setMerchantLoading(false);
       }
     };
-    fetchMerchants();
-  }, []);
+    if (token) {
+      fetchMerchants();
+    } else {
+      setMerchantLoading(false);
+    }
+  }, [token]);
 
   const handleChange = (e) => {
     setFormData({
@@ -42,20 +67,24 @@ const Contact = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(false);
+
+    if (!token) {
+      setError("Anda harus login terlebih dahulu untuk mengirim pesan.");
+      setLoading(false);
+      return;
+    }
 
     try {
-      // Simulate API call (uncomment and configure for actual backend)
-      /*
-      await fetch("https://pasarku-backend.vercel.app/api/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+      await sendMessage(token, {
+        storeName: formData.merchantId,
+        message: formData.message,
       });
-      */
+
       setSuccess(true);
       setFormData({ name: "", merchantId: "", message: "" });
     } catch (err) {
-      setError("Gagal mengirim pesan. Silakan coba lagi.");
+      setError(err.message || "Gagal mengirim pesan. Silakan coba lagi.");
     } finally {
       setLoading(false);
     }
@@ -119,6 +148,10 @@ const Contact = () => {
                   ) : merchantError ? (
                     <div className="bg-red-50 text-red-700 p-4 rounded-lg">
                       {merchantError}
+                    </div>
+                  ) : merchants.length === 0 ? (
+                    <div className="bg-yellow-50 text-yellow-700 p-4 rounded-lg">
+                      Tidak ada toko yang tersedia saat ini.
                     </div>
                   ) : (
                     <select
