@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { FiPackage, FiDollarSign, FiUsers, FiStar, FiEdit2, FiPlus } from "react-icons/fi";
 import { getDashboardToko, getMerchantItems, getMerchants, getStock, addItem, updateItem, deleteItem, getUserFromToken } from "../services/api";
+import Swal from "sweetalert2";
 
 const DashboardToko = () => {
-  const { id } = useParams(); // Pastikan ini sesuai dengan merchantId yang valid (e.g., eQG0MTvIzJ1CIhfJUi7g)
+  const { id } = useParams();
   const [merchant, setMerchant] = useState(null);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,13 +59,6 @@ const DashboardToko = () => {
         const dashboardData = await getDashboardToko(token, id);
         console.log("Dashboard API Response:", dashboardData);
 
-        setStats({
-          totalProducts: dashboardData.topProducts?.length || 0,
-          totalOrders: (dashboardData.ordersByStatus?.completed || 0) + (dashboardData.ordersByStatus?.pending || 0),
-          totalRevenue: dashboardData.totalSales || 0,
-          averageRating: 0,
-        });
-
         const itemsData = await getMerchantItems(token, id);
         console.log("Items API Response:", itemsData);
 
@@ -88,6 +82,13 @@ const DashboardToko = () => {
             })
           : [];
         setProducts(formattedProducts);
+
+        setStats({
+          totalProducts: itemsData.length,
+          totalOrders: (dashboardData.ordersByStatus?.completed || 0) + (dashboardData.ordersByStatus?.pending || 0),
+          totalRevenue: dashboardData.totalSales || 0,
+          averageRating: 0,
+        });
       } catch (err) {
         console.error("Error fetching data:", err);
         setError("Gagal memuat data: " + err.message);
@@ -109,132 +110,148 @@ const DashboardToko = () => {
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setFormError(null);
-  setFormSuccess(null);
+    e.preventDefault();
+    setFormError(null);
+    setFormSuccess(null);
 
-  // Validasi form yang lebih ketat
-  if (!formData.name || formData.name.trim() === "") {
-    setFormError("Nama produk tidak boleh kosong.");
-    return;
-  }
-  if (!formData.category) {
-    setFormError("Kategori harus dipilih.");
-    return;
-  }
-  if (!formData.basePrice || Number(formData.basePrice) < 1000) {
-    setFormError("Harga harus lebih besar dari atau sama dengan 1000.");
-    return;
-  }
-  if (!formData.quantity || Number(formData.quantity) <= 0 || isNaN(Number(formData.quantity))) {
-    setFormError("Stok harus berupa angka positif lebih besar dari 0.");
-    return;
-  }
+    // Add SweetAlert2 confirmation dialog
+    const confirmationMessage = isEditMode
+      ? `Apakah Anda yakin ingin memperbarui produk "${formData.name}"?`
+      : `Apakah Anda yakin ingin menambahkan produk "${formData.name}"?`;
+    
+    const result = await Swal.fire({
+      title: 'Konfirmasi',
+      text: confirmationMessage,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#22c55e', // Green color to match your theme
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Ya, Simpan',
+      cancelButtonText: 'Batal',
+    });
 
-  try {
-    const token = localStorage.getItem("token");
-    console.log("Token:", token);
-    if (!token) {
-      throw new Error("Token tidak ditemukan. Silakan login kembali.");
+    if (!result.isConfirmed) {
+      return; // If user cancels, stop the submission
     }
 
-    const user = getUserFromToken(token);
-    if (!user) {
-      throw new Error("Token tidak valid atau kadaluarsa. Silakan login kembali.");
+    // Validasi form yang lebih ketat
+    if (!formData.name || formData.name.trim() === "") {
+      setFormError("Nama produk tidak boleh kosong.");
+      return;
     }
-
-    const existingProduct = products.find(
-      (product) => product.name.toLowerCase() === formData.name.toLowerCase() && !isEditMode
-    );
-    if (existingProduct) {
-      setFormError("Nama barang sudah ada. Silakan gunakan nama lain.");
+    if (!formData.category) {
+      setFormError("Kategori harus dipilih.");
+      return;
+    }
+    if (!formData.basePrice || Number(formData.basePrice) < 1000) {
+      setFormError("Harga harus lebih besar dari atau sama dengan 1000.");
+      return;
+    }
+    if (!formData.quantity || Number(formData.quantity) <= 0 || isNaN(Number(formData.quantity))) {
+      setFormError("Stok harus berupa angka positif lebih besar dari 0.");
       return;
     }
 
-    // Buat object data yang akan dikirim (bukan FormData)
-    const itemData = {
-      merchantId: id,
-      name: formData.name.trim(),
-      category: formData.category,
-      basePrice: formData.basePrice,
-      quantity: formData.quantity, // Kirim sebagai string
-      photo: formData.photo || null
-    };
+    try {
+      const token = localStorage.getItem("token");
+      console.log("Token:", token);
+      if (!token) {
+        throw new Error("Token tidak ditemukan. Silakan login kembali.");
+      }
 
-    console.log("Data yang akan dikirim:", itemData);
+      const user = getUserFromToken(token);
+      if (!user) {
+        throw new Error("Token tidak valid atau kadaluarsa. Silakan login kembali.");
+      }
 
-    let response;
-    if (isEditMode) {
-      response = await updateItem(token, currentItemId, itemData);
-      console.log("Update Item API Response:", response);
+      const existingProduct = products.find(
+        (product) => product.name.toLowerCase() === formData.name.toLowerCase() && !isEditMode
+      );
+      if (existingProduct) {
+        setFormError("Nama barang sudah ada. Silakan gunakan nama lain.");
+        return;
+      }
 
-      setProducts(products.map((product) =>
-        product.id === currentItemId
-          ? {
-              ...product,
-              name: formData.name.trim(),
-              category: formData.category,
-              price: Number(formData.basePrice),
-              stock: Number(formData.quantity),
-              image_url: response.photoUrl || product.image_url,
-            }
-          : product
-      ));
-      setFormSuccess("Barang berhasil diperbarui!");
-    } else {
-      response = await addItem(token, itemData);
-      console.log("Add Item API Response:", response);
+      const itemData = {
+        merchantId: id,
+        name: formData.name.trim(),
+        category: formData.category,
+        basePrice: formData.basePrice,
+        quantity: formData.quantity,
+        photo: formData.photo || null,
+      };
 
-      // Refresh data setelah berhasil menambah item
-      const itemsData = await getMerchantItems(token, id);
-      const dashboardData = await getDashboardToko(token, id);
-      const stockData = await getStock(id);
-      const topProducts = dashboardData.topProducts || [];
-      
-      const formattedProducts = Array.isArray(itemsData)
-        ? itemsData.map((item) => {
-            const topProduct = topProducts.find((tp) => tp.item.toLowerCase() === item.name.toLowerCase());
-            const stockItem = stockData.find((s) => s.itemId === item.id);
-            return {
-              id: item.id,
-              name: item.name,
-              category: item.category || "",
-              price: item.basePrice || 0,
-              stock: stockItem ? stockItem.quantity : topProduct ? topProduct.totalQuantity : 0,
-              is_active: true,
-              image_url: item.photoUrl || "https://via.placeholder.com/40",
-            };
-          })
-        : [];
-      
-      setProducts(formattedProducts);
-      setStats({
-        totalProducts: dashboardData.topProducts?.length || 0,
-        totalOrders: (dashboardData.ordersByStatus?.completed || 0) + (dashboardData.ordersByStatus?.pending || 0),
-        totalRevenue: dashboardData.totalSales || 0,
-        averageRating: 0,
+      console.log("Data yang akan dikirim:", itemData);
+
+      let response;
+      if (isEditMode) {
+        response = await updateItem(token, currentItemId, itemData);
+        console.log("Update Item API Response:", response);
+
+        setProducts(products.map((product) =>
+          product.id === currentItemId
+            ? {
+                ...product,
+                name: formData.name.trim(),
+                category: formData.category,
+                price: Number(formData.basePrice),
+                stock: Number(formData.quantity),
+                image_url: response.photoUrl || product.image_url,
+              }
+            : product
+        ));
+        setFormSuccess("Barang berhasil diperbarui!");
+      } else {
+        response = await addItem(token, itemData);
+        console.log("Add Item API Response:", response);
+
+        const itemsData = await getMerchantItems(token, id);
+        const dashboardData = await getDashboardToko(token, id);
+        const stockData = await getStock(id);
+        const topProducts = dashboardData.topProducts || [];
+
+        const formattedProducts = Array.isArray(itemsData)
+          ? itemsData.map((item) => {
+              const topProduct = topProducts.find((tp) => tp.item.toLowerCase() === item.name.toLowerCase());
+              const stockItem = stockData.find((s) => s.itemId === item.id);
+              return {
+                id: item.id,
+                name: item.name,
+                category: item.category || "",
+                price: item.basePrice || 0,
+                stock: stockItem ? stockItem.quantity : topProduct ? topProduct.totalQuantity : 0,
+                is_active: true,
+                image_url: item.photoUrl || "https://via.placeholder.com/40",
+              };
+            })
+          : [];
+
+        setProducts(formattedProducts);
+        setStats({
+          totalProducts: itemsData.length,
+          totalOrders: (dashboardData.ordersByStatus?.completed || 0) + (dashboardData.ordersByStatus?.pending || 0),
+          totalRevenue: dashboardData.totalSales || 0,
+          averageRating: 0,
+        });
+
+        setFormSuccess("Barang berhasil ditambahkan!");
+      }
+
+      setFormData({
+        name: "",
+        category: "",
+        basePrice: "",
+        photo: null,
+        quantity: "",
       });
-
-      setFormSuccess("Barang berhasil ditambahkan!");
+      setIsModalOpen(false);
+      setIsEditMode(false);
+      setCurrentItemId(null);
+    } catch (err) {
+      console.error("Error processing item:", err);
+      setFormError("Gagal memproses barang: " + (err.message || "Unknown error"));
     }
-
-    // Reset form
-    setFormData({
-      name: "",
-      category: "",
-      basePrice: "",
-      photo: null,
-      quantity: "",
-    });
-    setIsModalOpen(false);
-    setIsEditMode(false);
-    setCurrentItemId(null);
-    
-  } catch (err) {
-    console.error("Error processing item:", err);
-    setFormError("Gagal memproses barang: " + (err.message || "Unknown error"));
-  }
-};
+  };
 
   const handleEditClick = (product) => {
     setIsEditMode(true);
@@ -250,7 +267,20 @@ const DashboardToko = () => {
   };
 
   const handleDeleteClick = async (itemId) => {
-    if (!window.confirm("Apakah Anda yakin ingin menghapus barang ini?")) return;
+    const result = await Swal.fire({
+      title: 'Konfirmasi',
+      text: 'Apakah Anda yakin ingin menghapus barang ini?',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#22c55e',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Ya, Hapus',
+      cancelButtonText: 'Batal',
+    });
+
+    if (!result.isConfirmed) {
+      return;
+    }
 
     try {
       const token = localStorage.getItem("token");
@@ -273,7 +303,12 @@ const DashboardToko = () => {
       }));
     } catch (err) {
       console.error("Error deleting item:", err);
-      alert("Gagal menghapus barang: " + (err.message || "Unknown error"));
+      await Swal.fire({
+        title: 'Error',
+        text: "Gagal menghapus barang: " + (err.message || "Unknown error"),
+        icon: 'error',
+        confirmButtonColor: '#22c55e',
+      });
     }
   };
 
