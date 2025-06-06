@@ -12,6 +12,7 @@ import {
 import { getUserFromToken, getProfile, addMerchant } from "../services/api";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import Swal from "sweetalert2";
 
 const Profile = () => {
   const [user, setUser] = useState(null);
@@ -27,7 +28,6 @@ const Profile = () => {
     photo: null,
   });
   const [tokoError, setTokoError] = useState("");
-  const [tokoSuccess, setTokoSuccess] = useState("");
   const [token, setToken] = useState("");
   const [copySuccess, setCopySuccess] = useState("");
   const navigate = useNavigate();
@@ -160,7 +160,6 @@ const Profile = () => {
   const handleAddToko = async (e) => {
     e.preventDefault();
     setTokoError("");
-    setTokoSuccess("");
 
     try {
       const storedToken = localStorage.getItem("token");
@@ -187,16 +186,23 @@ const Profile = () => {
       const result = await addMerchant(storedToken, merchantData);
       console.log("API Response:", result);
 
-      setTokoSuccess("Toko berhasil ditambahkan!");
-      setTokoForm({ name: "", category: "", lat: "", lon: "", photo: null });
-      setShowAddToko(false);
+      Swal.fire({
+        title: "Berhasil!",
+        text: "Toko berhasil ditambahkan!",
+        icon: "success",
+        confirmButtonColor: "#15803d",
+        confirmButtonText: "OK",
+      }).then(() => {
+        setTokoForm({ name: "", category: "", lat: "", lon: "", photo: null });
+        setShowAddToko(false);
 
-      const merchantId = result.data?.id || result.id || result.merchantId;
-      if (merchantId) {
-        navigate(`/dashboard-toko/${merchantId}`);
-      } else {
-        throw new Error("ID toko tidak ditemukan dalam respons");
-      }
+        const merchantId = result.data?.id || result.id || result.merchantId;
+        if (merchantId) {
+          navigate(`/dashboard-toko/${merchantId}`);
+        } else {
+          throw new Error("ID toko tidak ditemukan dalam respons");
+        }
+      });
     } catch (err) {
       console.error("Error adding merchant:", err);
       setTokoError("Gagal menambah toko: " + (err.message || "Unknown error"));
@@ -207,6 +213,23 @@ const Profile = () => {
     navigator.clipboard.writeText(token);
     setCopySuccess("Token berhasil disalin!");
     setTimeout(() => setCopySuccess(""), 2000);
+  };
+
+  const handleShowAddToko = () => {
+    Swal.fire({
+      title: "Tambah Toko Baru",
+      text: "Apakah Anda yakin ingin menambahkan toko baru?",
+      icon: "question",
+      showCancelButton: true,
+      confirmButtonColor: "#15803d",
+      cancelButtonColor: "#b91c1c",
+      confirmButtonText: "Ya, Tambah",
+      cancelButtonText: "Batal",
+    }).then((result) => {
+      if (result.isConfirmed) {
+        setShowAddToko(true);
+      }
+    });
   };
 
   if (loading) {
@@ -357,7 +380,7 @@ const Profile = () => {
 
             <div className="my-4">
               <button
-                onClick={() => setShowAddToko(true)}
+                onClick={handleShowAddToko}
                 className="bg-green-700 text-white px-6 py-2 rounded-lg hover:bg-green-800 transition"
               >
                 + Tambah Toko
@@ -458,11 +481,6 @@ const Profile = () => {
                   </div>
                   {tokoError && (
                     <div className="text-red-600 mb-2 text-sm">{tokoError}</div>
-                  )}
-                  {tokoSuccess && (
-                    <div className="text-green-600 mb-2 text-sm">
-                      {tokoSuccess}
-                    </div>
                   )}
                   <button
                     type="submit"
