@@ -251,20 +251,31 @@ export const addToCart = async (token, cartData) => {
     formData.append(key, cartData[key]);
   });
 
-  const res = await fetch(`${API_URL}/api/cart`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    body: formData,
-  });
-
-  if (!res.ok) {
-    const errorData = await res.json();
-    throw new Error(errorData.error || "Gagal menambah barang ke keranjang");
+  let res;
+  try {
+    res = await fetch(`${API_URL}/cart`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+  } catch (err) {
+    console.error("Network error saat addToCart:", err);
+    throw new Error("Network error saat menambah ke keranjang");
   }
 
-  return res.json();
+  let text = await res.text();
+  try {
+    const json = JSON.parse(text);
+    if (!res.ok) {
+      throw new Error(json.error || json.message || "Gagal menambah barang ke keranjang");
+    }
+    return json;
+  } catch (e) {
+    console.error("Response bukan JSON:", text);
+    throw new Error(`Gagal menambah barang ke keranjang. Response: ${text}`);
+  }
 };
 
 export const getCart = async (token) => {

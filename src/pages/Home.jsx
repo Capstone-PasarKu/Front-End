@@ -14,7 +14,6 @@ import {
   FiShoppingCart,
 } from "react-icons/fi";
 import { searchProducts } from "../services/api"; // Sesuaikan path ke file API service
-import { useCart } from "../contexts/CartContext";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -26,7 +25,6 @@ const Home = () => {
   const [selectedProduct, setSelectedProduct] = useState(null); // State for modal
   const [searchQuery, setSearchQuery] = useState(""); // State for search input
   const [selectedCategory, setSelectedCategory] = useState(""); // State for selected category
-  const { addToCart } = useCart();
   const [merchants, setMerchants] = useState([]);
 
   const categories = [

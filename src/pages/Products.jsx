@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { FiX, FiShoppingCart, FiUser, FiTag, FiSearch } from "react-icons/fi";
-import { searchProducts } from "../services/api"; // Sesuaikan path ke file API service
-import { useCart } from "../contexts/CartContext";
+import { searchProducts, addToCart } from "../services/api";
 
 const Products = () => {
   const [products, setProducts] = useState([]);
@@ -13,7 +12,6 @@ const Products = () => {
   const [selectedProduct, setSelectedProduct] = useState(null); // State for modal
   const [cartLoading, setCartLoading] = useState(false); // Loading state for cart action
   const [cartMessage, setCartMessage] = useState(""); // Message for cart action feedback
-  const { addToCart } = useCart();
 
   const categories = [
     { value: "", label: "Semua Kategori" },
@@ -24,45 +22,47 @@ const Products = () => {
     { value: "daging", label: "Daging" },
   ];
 
- const fetchProducts = async (query = "", sort = "termurah", cat = "") => {
-  setLoading(true);
-  setError(null);
-  try {
-    const data = await searchProducts(query, sort);
-    let filteredProducts = data.map((item) => ({
-      id: item.id,
-      name: item.item.name,
-      price: item.item.basePrice,
-      image: item.item.photoUrl || "https://via.placeholder.com/150",
-      description: `Dijual oleh ${item.merchant.name} - Kategori: ${item.item.category}`,
-      itemCategory: item.item.category,
-      merchantId: item.merchant.id, // Simpan merchantId langsung
-    }));
-    if (cat) {
-      filteredProducts = filteredProducts.filter(
-        (product) => product.itemCategory.toLowerCase() === cat.toLowerCase()
-      );
+  const fetchProducts = async (query = "", sort = "termurah", cat = "") => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await searchProducts(query, sort);
+      console.log("Data hasil searchProducts:", data); // Tambahkan log ini
+      let filteredProducts = data.map((item) => ({
+        id: item.id,
+        name: item.item.name,
+        price: item.item.basePrice,
+        image: item.item.photoUrl || "https://via.placeholder.com/150",
+        description: `Dijual oleh ${item.merchant?.name || item.merchantId || "-"} - Kategori: ${item.item.category}`,
+        itemCategory: item.item.category,
+        merchantId: item.merchant?.id || item.merchantId, // Coba fallback ke item.merchantId
+        seller: item.merchant?.name || item.merchantId || "-", // Coba fallback ke item.merchantId
+        category: item.item.category,
+      }));
+      if (cat) {
+        filteredProducts = filteredProducts.filter(
+          (product) => product.itemCategory.toLowerCase() === cat.toLowerCase()
+        );
+      }
+      setProducts(filteredProducts);
+    } catch (err) {
+      setError(err.message);
+      setProducts([]);
+    } finally {
+      setLoading(false);
     }
-    setProducts(filteredProducts);
-  } catch (err) {
-    setError(err.message);
-    setProducts([]);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
-    fetchProducts(searchQuery, sortBy, category);
-  }, [sortBy, category]);
+    const timeout = setTimeout(() => {
+      fetchProducts(searchQuery, sortBy, category);
+    }, 500);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
 
   const handleSearch = (e) => {
-    const query = e.target.value;
-    setSearchQuery(query);
-    const debounce = setTimeout(() => {
-      fetchProducts(query, sortBy, category);
-    }, 500);
-    return () => clearTimeout(debounce);
+    setSearchQuery(e.target.value);
   };
 
   const handleSearchClick = () => {
@@ -87,34 +87,42 @@ const Products = () => {
     setSelectedProduct(null);
   };
 
-const handleAddToCart = async (product) => {
-  setCartLoading(true);
-  setCartMessage("");
-  try {
-    const token = localStorage.getItem("token");
-    if (!token) {
-      throw new Error("Token tidak ditemukan. Silakan login kembali.");
+  const handleAddToCart = async (product) => {
+    setCartLoading(true);
+    setCartMessage("");
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        alert("Silakan login terlebih dahulu.");
+        window.location.href = "/login"; // Atau gunakan React Router
+        return;
+      }
+
+      if (!product.merchantId) {
+        setCartMessage("Gagal menambah ke keranjang: merchantId tidak ditemukan pada produk ini.");
+        setCartLoading(false);
+        return;
+      }
+
+      const cartData = {
+        itemId: product.id,
+        quantity: 1,
+        merchantId: product.merchantId, // Ambil dari merchantId langsung
+      };
+
+      // Log untuk debugging
+      console.log("Mengirim data ke API:", cartData);
+
+      const response = await addToCart(token, cartData);
+      setCartMessage(`Berhasil ditambahkan ke keranjang! ID: ${response.id}`);
+    } catch (error) {
+      console.error("Gagal menambah ke keranjang:", error);
+      setCartMessage(`Gagal menambah barang ke keranjang: ${error.message}`);
+    } finally {
+      setCartLoading(false);
+      setTimeout(() => setCartMessage(""), 5000);
     }
-
-    const cartData = {
-      itemId: product.id,
-      quantity: 1,
-      merchantId: product.merchantId, // Ambil dari merchantId langsung
-    };
-
-    // Log untuk debugging
-    console.log("Mengirim data ke API:", cartData);
-
-    const response = await addToCart(token, cartData);
-    setCartMessage(`Berhasil ditambahkan ke keranjang! ID: ${response.id}`);
-  } catch (error) {
-    console.error("Gagal menambah ke keranjang:", error);
-    setCartMessage(`Gagal menambah barang ke keranjang: ${error.message}`);
-  } finally {
-    setCartLoading(false);
-    setTimeout(() => setCartMessage(""), 5000);
-  }
-};
+  };
 
   return (
     <div className="p-6 min-h-screen bg-[#F5F5DC]">
@@ -217,7 +225,9 @@ const handleAddToCart = async (product) => {
             <div className="flex flex-col md:flex-row gap-8 items-center">
               <div className="flex-shrink-0">
                 <img
-                  src={selectedProduct.image || "https://via.placeholder.com/300"}
+                  src={
+                    selectedProduct.image || "https://via.placeholder.com/300"
+                  }
                   alt={selectedProduct.name || "Gambar Produk"}
                   className="w-56 h-56 object-cover rounded-xl border-4 border-[#76AB51] shadow-md"
                 />
@@ -258,7 +268,13 @@ const handleAddToCart = async (product) => {
                   </button>
                 </div>
                 {cartMessage && (
-                  <p className={`mt-4 text-center ${cartMessage.includes("Gagal") ? "text-red-500" : "text-green-500"}`}>
+                  <p
+                    className={`mt-4 text-center ${
+                      cartMessage.includes("Gagal")
+                        ? "text-red-500"
+                        : "text-green-500"
+                    }`}
+                  >
                     {cartMessage}
                   </p>
                 )}
