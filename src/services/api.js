@@ -373,3 +373,16 @@ export const sendMessage = async (token, { storeName, message }) => {
   if (!res.ok) throw new Error("Gagal mengirim pesan");
   return res.json();
 };
+
+
+export const getMessages = async (token, merchantId) => {
+  const res = await fetch(`${API_URL}/merchant/messages?merchantId=${merchantId}`, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error("Gagal memuat pesan");
+  return res.json();
+};

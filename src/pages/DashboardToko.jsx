@@ -1,13 +1,32 @@
 import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { FiPackage, FiDollarSign, FiUsers, FiStar, FiEdit2, FiPlus, FiList } from "react-icons/fi";
-import { getDashboardToko, getMerchantItems, getMerchants, getStock, addItem, updateItem, deleteItem, getUserFromToken } from "../services/api";
+import {
+  FiPackage,
+  FiDollarSign,
+  FiUsers,
+  FiStar,
+  FiEdit2,
+  FiPlus,
+  FiList,
+} from "react-icons/fi";
+import {
+  getDashboardToko,
+  getMerchantItems,
+  getMerchants,
+  getStock,
+  addItem,
+  updateItem,
+  deleteItem,
+  getUserFromToken,
+  getMessages,
+} from "../services/api";
 import Swal from "sweetalert2";
 
 const DashboardToko = () => {
   const { id } = useParams();
   const [merchant, setMerchant] = useState(null);
   const [products, setProducts] = useState([]);
+  const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
@@ -41,7 +60,9 @@ const DashboardToko = () => {
 
         const user = getUserFromToken(token);
         if (!user) {
-          throw new Error("Token tidak valid atau kadaluarsa. Silakan login kembali.");
+          throw new Error(
+            "Token tidak valid atau kadaluarsa. Silakan login kembali."
+          );
         }
 
         const merchantsData = await getMerchants(token, true);
@@ -68,14 +89,20 @@ const DashboardToko = () => {
         const topProducts = dashboardData.topProducts || [];
         const formattedProducts = Array.isArray(itemsData)
           ? itemsData.map((item) => {
-              const topProduct = topProducts.find((tp) => tp.item.toLowerCase() === item.name.toLowerCase());
+              const topProduct = topProducts.find(
+                (tp) => tp.item.toLowerCase() === item.name.toLowerCase()
+              );
               const stockItem = stockData.find((s) => s.itemId === item.id);
               return {
                 id: item.id,
                 name: item.name,
                 category: item.category || "",
                 price: item.basePrice || 0,
-                stock: stockItem ? stockItem.quantity : topProduct ? topProduct.totalQuantity : 0,
+                stock: stockItem
+                  ? stockItem.quantity
+                  : topProduct
+                  ? topProduct.totalQuantity
+                  : 0,
                 is_active: true,
                 image_url: item.photoUrl || "https://via.placeholder.com/40",
               };
@@ -85,10 +112,15 @@ const DashboardToko = () => {
 
         setStats({
           totalProducts: itemsData.length,
-          totalOrders: (dashboardData.ordersByStatus?.completed || 0) + (dashboardData.ordersByStatus?.pending || 0),
+          totalOrders:
+            (dashboardData.ordersByStatus?.completed || 0) +
+            (dashboardData.ordersByStatus?.pending || 0),
           totalRevenue: dashboardData.totalSales || 0,
           averageRating: 0,
         });
+        // Fetch messages with the updated function
+        const messagesData = await getMessages(token, id);
+        setMessages(messagesData);
       } catch (err) {
         console.error("Error fetching data:", err);
         setError("Gagal memuat data: " + err.message);
@@ -117,16 +149,16 @@ const DashboardToko = () => {
     const confirmationMessage = isEditMode
       ? `Apakah Anda yakin ingin memperbarui produk "${formData.name}"?`
       : `Apakah Anda yakin ingin menambahkan produk "${formData.name}"?`;
-    
+
     const result = await Swal.fire({
-      title: 'Konfirmasi',
+      title: "Konfirmasi",
       text: confirmationMessage,
-      icon: 'question',
+      icon: "question",
       showCancelButton: true,
-      confirmButtonColor: '#22c55e',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Ya, Simpan',
-      cancelButtonText: 'Batal',
+      confirmButtonColor: "#22c55e",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Ya, Simpan",
+      cancelButtonText: "Batal",
     });
 
     if (!result.isConfirmed) {
@@ -145,7 +177,11 @@ const DashboardToko = () => {
       setFormError("Harga harus lebih besar dari atau sama dengan 1000.");
       return;
     }
-    if (!formData.quantity || Number(formData.quantity) <= 0 || isNaN(Number(formData.quantity))) {
+    if (
+      !formData.quantity ||
+      Number(formData.quantity) <= 0 ||
+      isNaN(Number(formData.quantity))
+    ) {
       setFormError("Stok harus berupa angka positif lebih besar dari 0.");
       return;
     }
@@ -159,11 +195,15 @@ const DashboardToko = () => {
 
       const user = getUserFromToken(token);
       if (!user) {
-        throw new Error("Token tidak valid atau kadaluarsa. Silakan login kembali.");
+        throw new Error(
+          "Token tidak valid atau kadaluarsa. Silakan login kembali."
+        );
       }
 
       const existingProduct = products.find(
-        (product) => product.name.toLowerCase() === formData.name.toLowerCase() && !isEditMode
+        (product) =>
+          product.name.toLowerCase() === formData.name.toLowerCase() &&
+          !isEditMode
       );
       if (existingProduct) {
         setFormError("Nama barang sudah ada. Silakan gunakan nama lain.");
@@ -186,18 +226,20 @@ const DashboardToko = () => {
         response = await updateItem(token, currentItemId, itemData);
         console.log("Update Item API Response:", response);
 
-        setProducts(products.map((product) =>
-          product.id === currentItemId
-            ? {
-                ...product,
-                name: formData.name.trim(),
-                category: formData.category,
-                price: Number(formData.basePrice),
-                stock: Number(formData.quantity),
-                image_url: response.photoUrl || product.image_url,
-              }
-            : product
-        ));
+        setProducts(
+          products.map((product) =>
+            product.id === currentItemId
+              ? {
+                  ...product,
+                  name: formData.name.trim(),
+                  category: formData.category,
+                  price: Number(formData.basePrice),
+                  stock: Number(formData.quantity),
+                  image_url: response.photoUrl || product.image_url,
+                }
+              : product
+          )
+        );
         setFormSuccess("Barang berhasil diperbarui!");
       } else {
         response = await addItem(token, itemData);
@@ -210,14 +252,20 @@ const DashboardToko = () => {
 
         const formattedProducts = Array.isArray(itemsData)
           ? itemsData.map((item) => {
-              const topProduct = topProducts.find((tp) => tp.item.toLowerCase() === item.name.toLowerCase());
+              const topProduct = topProducts.find(
+                (tp) => tp.item.toLowerCase() === item.name.toLowerCase()
+              );
               const stockItem = stockData.find((s) => s.itemId === item.id);
               return {
                 id: item.id,
                 name: item.name,
                 category: item.category || "",
                 price: item.basePrice || 0,
-                stock: stockItem ? stockItem.quantity : topProduct ? topProduct.totalQuantity : 0,
+                stock: stockItem
+                  ? stockItem.quantity
+                  : topProduct
+                  ? topProduct.totalQuantity
+                  : 0,
                 is_active: true,
                 image_url: item.photoUrl || "https://via.placeholder.com/40",
               };
@@ -227,7 +275,9 @@ const DashboardToko = () => {
         setProducts(formattedProducts);
         setStats({
           totalProducts: itemsData.length,
-          totalOrders: (dashboardData.ordersByStatus?.completed || 0) + (dashboardData.ordersByStatus?.pending || 0),
+          totalOrders:
+            (dashboardData.ordersByStatus?.completed || 0) +
+            (dashboardData.ordersByStatus?.pending || 0),
           totalRevenue: dashboardData.totalSales || 0,
           averageRating: 0,
         });
@@ -247,7 +297,9 @@ const DashboardToko = () => {
       setCurrentItemId(null);
     } catch (err) {
       console.error("Error processing item:", err);
-      setFormError("Gagal memproses barang: " + (err.message || "Unknown error"));
+      setFormError(
+        "Gagal memproses barang: " + (err.message || "Unknown error")
+      );
     }
   };
 
@@ -266,14 +318,14 @@ const DashboardToko = () => {
 
   const handleDeleteClick = async (itemId) => {
     const result = await Swal.fire({
-      title: 'Konfirmasi',
-      text: 'Apakah Anda yakin ingin menghapus barang ini?',
-      icon: 'warning',
+      title: "Konfirmasi",
+      text: "Apakah Anda yakin ingin menghapus barang ini?",
+      icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: '#22c55e',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Ya, Hapus',
-      cancelButtonText: 'Batal',
+      confirmButtonColor: "#22c55e",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Ya, Hapus",
+      cancelButtonText: "Batal",
     });
 
     if (!result.isConfirmed) {
@@ -288,7 +340,9 @@ const DashboardToko = () => {
 
       const user = getUserFromToken(token);
       if (!user) {
-        throw new Error("Token tidak valid atau kadaluarsa. Silakan login kembali.");
+        throw new Error(
+          "Token tidak valid atau kadaluarsa. Silakan login kembali."
+        );
       }
 
       const response = await deleteItem(token, itemId);
@@ -302,10 +356,10 @@ const DashboardToko = () => {
     } catch (err) {
       console.error("Error deleting item:", err);
       await Swal.fire({
-        title: 'Error',
+        title: "Error",
         text: "Gagal menghapus barang: " + (err.message || "Unknown error"),
-        icon: 'error',
-        confirmButtonColor: '#22c55e',
+        icon: "error",
+        confirmButtonColor: "#22c55e",
       });
     }
   };
@@ -321,7 +375,9 @@ const DashboardToko = () => {
   if (error) {
     return (
       <div className="flex justify-center items-center min-h-screen bg-[#F5F5DC]">
-        <div className="bg-white p-6 rounded-2xl shadow-xl text-red-600">{error}</div>
+        <div className="bg-white p-6 rounded-2xl shadow-xl text-red-600">
+          {error}
+        </div>
       </div>
     );
   }
@@ -332,8 +388,12 @@ const DashboardToko = () => {
         <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{merchant?.name || "Nama Toko Kosong"}</h1>
-              <p className="text-gray-600">{merchant?.category || "Kategori Kosong"}</p>
+              <h1 className="text-2xl font-bold text-gray-900">
+                {merchant?.name || "Nama Toko Kosong"}
+              </h1>
+              <p className="text-gray-600">
+                {merchant?.category || "Kategori Kosong"}
+              </p>
             </div>
             <div className="flex space-x-4">
               <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
@@ -359,7 +419,9 @@ const DashboardToko = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Total Produk</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalProducts}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.totalProducts}
+                </p>
               </div>
             </div>
           </div>
@@ -383,7 +445,9 @@ const DashboardToko = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Total Pesanan</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.totalOrders}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.totalOrders}
+                </p>
               </div>
             </div>
           </div>
@@ -394,10 +458,32 @@ const DashboardToko = () => {
               </div>
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Rating Rata-rata</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.averageRating.toFixed(1)}</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {stats.averageRating.toFixed(1)}
+                </p>
               </div>
             </div>
           </div>
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-xl font-bold text-gray-900">
+              Pesan dari Pengguna
+            </h2>
+          </div>
+          {messages.length > 0 ? (
+            <div className="space-y-4">
+              {messages.map((msg, index) => (
+                <div key={index} className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-gray-900">{msg.message}</p>
+                  <p className="text-sm text-gray-500">ID: {msg.id}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500">Belum ada pesan.</p>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-6">
@@ -428,11 +514,17 @@ const DashboardToko = () => {
                 <h2 className="text-xl font-bold text-gray-900 mb-4">
                   {isEditMode ? "Edit Produk" : "Tambah Produk Baru"}
                 </h2>
-                {formError && <div className="text-red-600 mb-4">{formError}</div>}
-                {formSuccess && <div className="text-green-600 mb-4">{formSuccess}</div>}
+                {formError && (
+                  <div className="text-red-600 mb-4">{formError}</div>
+                )}
+                {formSuccess && (
+                  <div className="text-green-600 mb-4">{formSuccess}</div>
+                )}
                 <form onSubmit={handleSubmit}>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">Nama Produk</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Nama Produk
+                    </label>
                     <input
                       type="text"
                       name="name"
@@ -443,7 +535,9 @@ const DashboardToko = () => {
                     />
                   </div>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">Kategori</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Kategori
+                    </label>
                     <select
                       name="category"
                       value={formData.category}
@@ -460,7 +554,9 @@ const DashboardToko = () => {
                     </select>
                   </div>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">Harga (Rp)</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Harga (Rp)
+                    </label>
                     <input
                       type="number"
                       name="basePrice"
@@ -472,14 +568,19 @@ const DashboardToko = () => {
                     />
                   </div>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">Stok Awal</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Stok Awal
+                    </label>
                     <input
                       type="number"
                       name="quantity"
                       value={formData.quantity}
                       onChange={(e) => {
                         const value = e.target.value;
-                        if (value === "" || (!isNaN(value) && Number(value) >= 0)) {
+                        if (
+                          value === "" ||
+                          (!isNaN(value) && Number(value) >= 0)
+                        ) {
                           handleInputChange(e);
                         }
                       }}
@@ -489,7 +590,9 @@ const DashboardToko = () => {
                     />
                   </div>
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-gray-700">Gambar Produk</label>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Gambar Produk
+                    </label>
                     <input
                       type="file"
                       name="photo"
@@ -558,7 +661,10 @@ const DashboardToko = () => {
                         <div className="h-10 w-10 flex-shrink-0">
                           <img
                             className="h-10 w-10 rounded-full object-cover"
-                            src={product.image_url || "https://via.placeholder.com/40"}
+                            src={
+                              product.image_url ||
+                              "https://via.placeholder.com/40"
+                            }
                             alt={product.name}
                           />
                         </div>
@@ -578,7 +684,9 @@ const DashboardToko = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{product.stock}</div>
+                      <div className="text-sm text-gray-900">
+                        {product.stock}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span

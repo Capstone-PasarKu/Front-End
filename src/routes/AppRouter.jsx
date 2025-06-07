@@ -7,7 +7,7 @@ import Login from "../pages/Login";
 import Register from "../pages/Register";
 import Profile from "../pages/Profile";
 import DashboardToko from "../pages/DashboardToko";
-import Cart from "../pages/Cart";
+import Cart from "../pages/cart";
 
 const AppRouter = () => (
   <Router>
