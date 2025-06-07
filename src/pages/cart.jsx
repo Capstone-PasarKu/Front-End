@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { FiTrash } from "react-icons/fi";
-import { getCart } from "../services/api";
+import { getCart, updateCartItem, removeCartItem } from "../services/api";
 
 const Cart = () => {
   const [cartItems, setCartItems] = useState([]);
@@ -20,7 +20,8 @@ const Cart = () => {
       const data = await getCart(token);
       setCartItems(data);
     } catch (err) {
-      setError("Gagal memuat keranjang. Silakan coba lagi.");
+      console.error("Error increasing quantity:", err); // Log the error for debugging
+      setError(`Gagal menambah keranjang: ${err.message}. Silakan coba lagi.`);
     } finally {
       setLoading(false);
     }
@@ -30,17 +31,63 @@ const Cart = () => {
     fetchCart();
   }, []);
 
-  const handleRemoveFromCart = (itemId) => {
-    console.log(`Removed item ${itemId} from cart`);
-  };
+  const handleIncrease = async (cartId) => {
+  setLoading(true);
+  try {
+    const token = localStorage.getItem("token");
+    const itemToUpdate = cartItems.find((item) => item.id === cartId);
+    if (itemToUpdate) {
+      const newQuantity = itemToUpdate.quantity + 1;
+      await updateCartItem(token, cartId, { quantity: newQuantity });
+      setCartItems((prev) =>
+        prev.map((item) =>
+          item.id === cartId ? { ...item, quantity: newQuantity } : item
+        )
+      );
+    }
+  } catch (err) {
+    console.error("Error increasing quantity:", err); // Log the error for debugging
+    setError(`Gagal menambah kuantitas: ${err.message}. Silakan coba lagi.`);
+  } finally {
+    setLoading(false);
+  }
+};
 
-  const handleIncrease = (itemId) => {
-    console.log(`Tambah jumlah item ${itemId}`);
-  };
+const handleDecrease = async (cartId, quantity) => {
+  if (quantity > 1) {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      const itemToUpdate = cartItems.find((item) => item.id === cartId);
+      if (itemToUpdate) {
+        const newQuantity = quantity - 1;
+        await updateCartItem(token, cartId, { quantity: newQuantity });
+        setCartItems((prev) =>
+          prev.map((item) =>
+            item.id === cartId ? { ...item, quantity: newQuantity } : item
+          )
+        );
+      }
+    } catch (err) {
+      console.error("Error decreasing quantity:", err); // Fixed typo in error message label
+      setError(`Gagal mengurangi kuantitas: ${err.message}. Silakan coba lagi.`);
+    } finally {
+      setLoading(false);
+    }
+  }
+};
 
-  const handleDecrease = (itemId, quantity) => {
-    if (quantity > 1) {
-      console.log(`Kurangi jumlah item ${itemId}`);
+  const handleRemoveFromCart = async (cartId) => {
+    setLoading(true);
+    try {
+      const token = localStorage.getItem("token");
+      await removeCartItem(token, cartId);
+      setCartItems((prev) => prev.filter((item) => item.id !== cartId));
+    } catch (err) {
+      console.error("Error increasing quantity:", err); // Log the error for debugging
+      setError(`Gagal menghapus item: ${err.message}. Silakan coba lagi.`);
+    } finally {
+      setLoading(false);
     }
   };
 

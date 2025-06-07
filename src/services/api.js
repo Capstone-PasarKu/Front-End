@@ -308,6 +308,33 @@ export const updateItem = async (token, itemId, itemData) => {
   return res.json();
 };
 
+
+//update cart
+export const updateCartItem = async (token, cartId, quantity) => {
+  const res = await fetch(`${API_URL}/cart/${cartId}`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ quantity }),
+  });
+  if (!res.ok) throw new Error("Gagal memperbarui keranjang");
+  return res.json();
+};
+
+// remove item cart
+export const removeCartItem = async (token, cartId) => {
+  const res = await fetch(`${API_URL}/cart/${cartId}`, {
+    method: "DELETE",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) throw new Error("Gagal menghapus item");
+  return res.json();
+};
+
 export const deleteItem = async (token, itemId) => {
   const res = await fetch(`${API_URL}/item/${itemId}`, {
     method: "DELETE",

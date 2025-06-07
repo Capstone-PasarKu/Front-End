@@ -396,10 +396,10 @@ const DashboardToko = () => {
               </p>
             </div>
             <div className="flex space-x-4">
-              <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
+              {/* <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
                 <FiEdit2 className="mr-2" />
                 Edit Toko
-              </button>
+              </button> */}
               <Link
                 to={`/dashboard-toko/${id}/orders`}
                 className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
