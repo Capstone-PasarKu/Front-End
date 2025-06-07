@@ -296,15 +296,6 @@ const Home = () => {
                 <p className="text-[#1C5532] text-2xl font-semibold mb-6">
                   Rp{selectedProduct.price.toLocaleString("id-ID")}
                 </p>
-                <div className="flex justify-center md:justify-start">
-                  <button
-                    onClick={() => addToCart(selectedProduct)}
-                    className="flex items-center gap-2 bg-[#76AB51] hover:bg-[#F0A04B] text-white px-8 py-3 rounded-xl font-semibold transition-colors duration-300"
-                  >
-                    <FiShoppingCart className="text-2xl" />
-                    Tambah ke Keranjang
-                  </button>
-                </div>
               </div>
             </div>
           </div>
