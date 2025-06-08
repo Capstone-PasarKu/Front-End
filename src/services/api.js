@@ -311,6 +311,7 @@ export const updateItem = async (token, itemId, itemData) => {
 
 // updateCartItem.js
 export const updateCartItem = async (token, cartId, { quantity, merchantId, itemId }) => {
+  console.log("Sending update:", { cartId, quantity, merchantId, itemId }); // Log data yang dikirim
   const res = await fetch(`${API_URL}/cart/${cartId}`, {
     method: "PUT",
     headers: {

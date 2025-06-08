@@ -6,9 +6,8 @@ const Cart = () => {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [updatingItemId, setUpdatingItemId] = useState(null); // Lacak item yang sedang diperbarui
+  const [updatingItemId, setUpdatingItemId] = useState(null);
 
-  // Helper untuk format harga
   const formatRupiah = (value) => {
     return value.toLocaleString("id-ID");
   };
@@ -42,7 +41,9 @@ const Cart = () => {
       if (!token) throw new Error("Token tidak ditemukan");
       const itemToUpdate = cartItems.find((item) => item.id === cartId);
       if (!itemToUpdate) throw new Error("Item tidak ditemukan di keranjang");
+      console.log("Item to update:", itemToUpdate);
       const newQuantity = itemToUpdate.quantity + 1;
+      console.log("New quantity:", newQuantity);
       await updateCartItem(token, cartId, {
         quantity: newQuantity,
         merchantId: itemToUpdate.merchantId,
@@ -56,7 +57,7 @@ const Cart = () => {
     } catch (err) {
       console.error("Error increasing quantity:", err);
       setError(`Gagal menambah kuantitas: ${err.message}. Silakan coba lagi.`);
-      await fetchCart(); // Segarkan data keranjang jika error
+      await fetchCart();
     } finally {
       setLoading(false);
       setUpdatingItemId(null);
@@ -73,7 +74,9 @@ const Cart = () => {
       if (!token) throw new Error("Token tidak ditemukan");
       const itemToUpdate = cartItems.find((item) => item.id === cartId);
       if (!itemToUpdate) throw new Error("Item tidak ditemukan di keranjang");
+      console.log("Item to update:", itemToUpdate);
       const newQuantity = quantity - 1;
+      console.log("New quantity:", newQuantity);
       await updateCartItem(token, cartId, {
         quantity: newQuantity,
         merchantId: itemToUpdate.merchantId,
@@ -87,7 +90,7 @@ const Cart = () => {
     } catch (err) {
       console.error("Error decreasing quantity:", err);
       setError(`Gagal mengurangi kuantitas: ${err.message}. Silakan coba lagi.`);
-      await fetchCart(); // Segarkan data keranjang jika error
+      await fetchCart();
     } finally {
       setLoading(false);
       setUpdatingItemId(null);
@@ -106,7 +109,7 @@ const Cart = () => {
     } catch (err) {
       console.error("Error removing item:", err);
       setError(`Gagal menghapus item: ${err.message}. Silakan coba lagi.`);
-      await fetchCart(); // Segarkan data keranjang jika error
+      await fetchCart();
     } finally {
       setLoading(false);
       setUpdatingItemId(null);
@@ -120,9 +123,7 @@ const Cart = () => {
   );
 
   if (loading && !updatingItemId) {
-    return (
-      <p className="text-center text-gray-500 mt-10">Memuat keranjang...</p>
-    );
+    return <p className="text-center text-gray-500 mt-10">Memuat keranjang...</p>;
   }
 
   if (error) {
@@ -145,16 +146,14 @@ const Cart = () => {
       <h2 className="text-3xl font-extrabold text-[#1C5532] mb-10 text-center drop-shadow">
         Keranjang Belanja
       </h2>
-      {/* Daftar Item Keranjang */}
       <div className="space-y-6 max-w-4xl mx-auto">
         {cartItems.map((item) => {
-          const { id, quantity, item: product, merchant } = item; // Destructure hanya field yang digunakan
+          const { id, quantity, item: product, merchant } = item;
           return (
             <div
               key={id}
               className="bg-white p-4 md:p-6 rounded-2xl shadow-md flex flex-col md:flex-row items-center md:items-stretch justify-between gap-4 transition-transform hover:scale-[1.01] border border-[#76AB51]/30"
             >
-              {/* Gambar Produk */}
               <div className="flex-shrink-0 flex items-center justify-center w-full md:w-auto">
                 <img
                   src={product.photoUrl || "https://via.placeholder.com/150"}
@@ -162,7 +161,6 @@ const Cart = () => {
                   className="w-20 h-20 md:w-24 md:h-24 object-cover rounded-xl border border-[#76AB51]/40 bg-gray-50"
                 />
               </div>
-              {/* Info Produk */}
               <div className="flex flex-col flex-1 justify-center md:justify-start md:ml-4">
                 <h3 className="text-lg md:text-xl font-bold text-[#1C5532] mb-1">
                   {product.name}
@@ -178,7 +176,6 @@ const Cart = () => {
                     Rp{formatRupiah(product.basePrice)}
                   </span>
                 </p>
-                {/* Kontrol Jumlah */}
                 <div className="flex items-center gap-3 mt-2">
                   <button
                     onClick={() => handleDecrease(id, quantity)}
@@ -203,7 +200,6 @@ const Cart = () => {
                   </button>
                 </div>
               </div>
-              {/* Harga Total & Hapus */}
               <div className="flex flex-col items-end justify-between gap-3 min-w-[110px] mt-4 md:mt-0">
                 <span className="text-lg font-bold text-[#1C5532]">
                   Rp{formatRupiah(product.basePrice * quantity)}
@@ -222,8 +218,6 @@ const Cart = () => {
           );
         })}
       </div>
-
-      {/* Ringkasan Belanja */}
       <div className="max-w-4xl mx-auto mt-10 bg-white rounded-2xl shadow-lg p-6 flex flex-col md:flex-row items-center justify-between gap-6 border border-[#76AB51]/30">
         <div>
           <h3 className="text-lg font-bold text-[#1C5532] mb-2">
