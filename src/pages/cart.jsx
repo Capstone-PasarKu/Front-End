@@ -6,6 +6,7 @@ const Cart = () => {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [updatingItemId, setUpdatingItemId] = useState(null); // Lacak item yang sedang diperbarui
 
   // Helper untuk format harga
   const formatRupiah = (value) => {
@@ -17,11 +18,12 @@ const Cart = () => {
     setError(null);
     try {
       const token = localStorage.getItem("token");
+      if (!token) throw new Error("Token tidak ditemukan");
       const data = await getCart(token);
       setCartItems(data);
     } catch (err) {
-      console.error("Error increasing quantity:", err); // Log the error for debugging
-      setError(`Gagal menambah keranjang: ${err.message}. Silakan coba lagi.`);
+      console.error("Error fetching cart:", err);
+      setError(`Gagal memuat keranjang: ${err.message}. Silakan coba lagi.`);
     } finally {
       setLoading(false);
     }
@@ -32,62 +34,82 @@ const Cart = () => {
   }, []);
 
   const handleIncrease = async (cartId) => {
-  setLoading(true);
-  try {
-    const token = localStorage.getItem("token");
-    const itemToUpdate = cartItems.find((item) => item.id === cartId);
-    if (itemToUpdate) {
+    setLoading(true);
+    setUpdatingItemId(cartId);
+    setError(null);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Token tidak ditemukan");
+      const itemToUpdate = cartItems.find((item) => item.id === cartId);
+      if (!itemToUpdate) throw new Error("Item tidak ditemukan di keranjang");
       const newQuantity = itemToUpdate.quantity + 1;
-      await updateCartItem(token, cartId, { quantity: newQuantity });
+      await updateCartItem(token, cartId, {
+        quantity: newQuantity,
+        merchantId: itemToUpdate.merchantId,
+        itemId: itemToUpdate.itemId,
+      });
       setCartItems((prev) =>
         prev.map((item) =>
           item.id === cartId ? { ...item, quantity: newQuantity } : item
         )
       );
-    }
-  } catch (err) {
-    console.error("Error increasing quantity:", err); // Log the error for debugging
-    setError(`Gagal menambah kuantitas: ${err.message}. Silakan coba lagi.`);
-  } finally {
-    setLoading(false);
-  }
-};
-
-const handleDecrease = async (cartId, quantity) => {
-  if (quantity > 1) {
-    setLoading(true);
-    try {
-      const token = localStorage.getItem("token");
-      const itemToUpdate = cartItems.find((item) => item.id === cartId);
-      if (itemToUpdate) {
-        const newQuantity = quantity - 1;
-        await updateCartItem(token, cartId, { quantity: newQuantity });
-        setCartItems((prev) =>
-          prev.map((item) =>
-            item.id === cartId ? { ...item, quantity: newQuantity } : item
-          )
-        );
-      }
     } catch (err) {
-      console.error("Error decreasing quantity:", err); // Fixed typo in error message label
-      setError(`Gagal mengurangi kuantitas: ${err.message}. Silakan coba lagi.`);
+      console.error("Error increasing quantity:", err);
+      setError(`Gagal menambah kuantitas: ${err.message}. Silakan coba lagi.`);
+      await fetchCart(); // Segarkan data keranjang jika error
     } finally {
       setLoading(false);
+      setUpdatingItemId(null);
     }
-  }
-};
+  };
+
+  const handleDecrease = async (cartId, quantity) => {
+    if (quantity <= 1) return;
+    setLoading(true);
+    setUpdatingItemId(cartId);
+    setError(null);
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) throw new Error("Token tidak ditemukan");
+      const itemToUpdate = cartItems.find((item) => item.id === cartId);
+      if (!itemToUpdate) throw new Error("Item tidak ditemukan di keranjang");
+      const newQuantity = quantity - 1;
+      await updateCartItem(token, cartId, {
+        quantity: newQuantity,
+        merchantId: itemToUpdate.merchantId,
+        itemId: itemToUpdate.itemId,
+      });
+      setCartItems((prev) =>
+        prev.map((item) =>
+          item.id === cartId ? { ...item, quantity: newQuantity } : item
+        )
+      );
+    } catch (err) {
+      console.error("Error decreasing quantity:", err);
+      setError(`Gagal mengurangi kuantitas: ${err.message}. Silakan coba lagi.`);
+      await fetchCart(); // Segarkan data keranjang jika error
+    } finally {
+      setLoading(false);
+      setUpdatingItemId(null);
+    }
+  };
 
   const handleRemoveFromCart = async (cartId) => {
     setLoading(true);
+    setUpdatingItemId(cartId);
+    setError(null);
     try {
       const token = localStorage.getItem("token");
+      if (!token) throw new Error("Token tidak ditemukan");
       await removeCartItem(token, cartId);
       setCartItems((prev) => prev.filter((item) => item.id !== cartId));
     } catch (err) {
-      console.error("Error increasing quantity:", err); // Log the error for debugging
+      console.error("Error removing item:", err);
       setError(`Gagal menghapus item: ${err.message}. Silakan coba lagi.`);
+      await fetchCart(); // Segarkan data keranjang jika error
     } finally {
       setLoading(false);
+      setUpdatingItemId(null);
     }
   };
 
@@ -97,7 +119,7 @@ const handleDecrease = async (cartId, quantity) => {
     0
   );
 
-  if (loading) {
+  if (loading && !updatingItemId) {
     return (
       <p className="text-center text-gray-500 mt-10">Memuat keranjang...</p>
     );
@@ -126,7 +148,7 @@ const handleDecrease = async (cartId, quantity) => {
       {/* Daftar Item Keranjang */}
       <div className="space-y-6 max-w-4xl mx-auto">
         {cartItems.map((item) => {
-          const { id, quantity, item: product, merchant } = item;
+          const { id, quantity, item: product, merchant } = item; // Destructure hanya field yang digunakan
           return (
             <div
               key={id}
@@ -150,7 +172,7 @@ const handleDecrease = async (cartId, quantity) => {
                     Toko: <span className="font-semibold">{merchant.name}</span>
                   </p>
                 )}
-                <p className="text-gray-600 text-sm mb-2">
+                <p className="text-gray-500 text-sm mb-2">
                   Harga Satuan:{" "}
                   <span className="font-medium text-black">
                     Rp{formatRupiah(product.basePrice)}
@@ -162,7 +184,7 @@ const handleDecrease = async (cartId, quantity) => {
                     onClick={() => handleDecrease(id, quantity)}
                     className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F5DC] border-2 border-[#76AB51] text-[#1C5532] text-xl font-bold hover:bg-[#76AB51] hover:text-white hover:scale-110 active:scale-95 transition-all duration-150 shadow-sm"
                     aria-label="Kurangi jumlah"
-                    disabled={quantity <= 1}
+                    disabled={quantity <= 1 || loading || updatingItemId === id}
                     title="Kurangi jumlah"
                   >
                     <span className="pointer-events-none select-none">−</span>
@@ -174,6 +196,7 @@ const handleDecrease = async (cartId, quantity) => {
                     onClick={() => handleIncrease(id)}
                     className="w-9 h-9 flex items-center justify-center rounded-full bg-[#F5F5DC] border-2 border-[#76AB51] text-[#1C5532] text-xl font-bold hover:bg-[#76AB51] hover:text-white hover:scale-110 active:scale-95 transition-all duration-150 shadow-sm"
                     aria-label="Tambah jumlah"
+                    disabled={loading || updatingItemId === id}
                     title="Tambah jumlah"
                   >
                     <span className="pointer-events-none select-none">+</span>
@@ -189,6 +212,7 @@ const handleDecrease = async (cartId, quantity) => {
                   onClick={() => handleRemoveFromCart(id)}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-50 border border-red-200 text-red-600 hover:bg-red-600 hover:text-white hover:border-red-600 transition-all duration-150 font-semibold shadow-sm active:scale-95"
                   title="Hapus item dari keranjang"
+                  disabled={loading || updatingItemId === id}
                 >
                   <FiTrash className="text-lg" />
                   <span className="hidden sm:inline">Hapus</span>
@@ -219,6 +243,7 @@ const handleDecrease = async (cartId, quantity) => {
         <button
           onClick={() => alert("Fitur checkout coming soon!")}
           className="bg-[#1C5532] hover:bg-[#76AB51] text-[#F5F5DC] px-8 py-3 rounded-xl font-semibold text-lg shadow transition duration-300"
+          disabled={loading}
         >
           Checkout
         </button>

@@ -309,17 +309,20 @@ export const updateItem = async (token, itemId, itemData) => {
 };
 
 
-//update cart
-export const updateCartItem = async (token, cartId, quantity) => {
+// updateCartItem.js
+export const updateCartItem = async (token, cartId, { quantity, merchantId, itemId }) => {
   const res = await fetch(`${API_URL}/cart/${cartId}`, {
     method: "PUT",
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ quantity }),
+    body: JSON.stringify({ quantity, merchantId, itemId }),
   });
-  if (!res.ok) throw new Error("Gagal memperbarui keranjang");
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || "Gagal memperbarui keranjang");
+  }
   return res.json();
 };
 
