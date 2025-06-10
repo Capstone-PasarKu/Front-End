@@ -14,6 +14,7 @@ import Footer from "./components/Footer";
 import DaftarPesanan from "./pages/DaftarPesanan";
 import Cart from "./pages/cart";
 import Payment from "./pages/Payment";
+import Owner from "./pages/Owner";
 
 function App() {
   return (
@@ -33,6 +34,7 @@ function App() {
           <Route path="/products" element={<Products />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/payment" element={<Payment />} />
+           <Route path="/owner" element={<Owner />} />
 				{/* Tambah rute lain, misal /order, kalo perlu */}
         </Routes>
          

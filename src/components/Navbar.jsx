@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { FiShoppingBag, FiUser, FiShoppingCart } from "react-icons/fi";
+import { getProfile } from "../services/api"; // Adjust path as needed
 
 const Navbar = () => {
   const location = useLocation();
@@ -8,6 +9,7 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
   const [merchantId, setMerchantId] = useState(null);
+  const [isOwner, setIsOwner] = useState(false); // New state for owner role
 
   // Listen to storage event for login/logout from other tabs
   useEffect(() => {
@@ -16,6 +18,7 @@ const Navbar = () => {
       setIsLoggedIn(!!token);
       if (!token) {
         setMerchantId(null);
+        setIsOwner(false);
         window.location.reload();
       }
     };
@@ -28,32 +31,41 @@ const Navbar = () => {
     const handleLogout = () => {
       setIsLoggedIn(false);
       setMerchantId(null);
+      setIsOwner(false);
       window.location.reload();
     };
     window.addEventListener("logout", handleLogout);
     return () => window.removeEventListener("logout", handleLogout);
   }, []);
 
+  // Fetch merchantId and user role
   useEffect(() => {
-    // Cek merchantId milik user
-    const fetchMerchant = async () => {
+    const fetchData = async () => {
       const token = localStorage.getItem("token");
-      if (token) {
-        try {
-          const res = await fetch(
-            "https://pasarku-backend.vercel.app/api/merchants?owned=true",
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          if (res.ok) {
-            const data = await res.json();
-            if (data && data.length > 0) setMerchantId(data[0].id);
+      if (!token) return;
+
+      try {
+        // Fetch profile to check role
+        const profileData = await getProfile(token);
+        console.log("Profile data:", profileData); // Debug
+        setIsOwner(profileData.role === "owner");
+
+        // Fetch merchantId
+        const res = await fetch(
+          "https://pasarku-backend.vercel.app/api/merchants?owned=true",
+          {
+            headers: { Authorization: `Bearer ${token}` },
           }
-        } catch {}
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.length > 0) setMerchantId(data[0].id);
+        }
+      } catch (err) {
+        console.error("Error fetching data:", err.message);
       }
     };
-    fetchMerchant();
+    fetchData();
   }, []);
 
   const isActive = (path) => location.pathname === path;
@@ -129,6 +141,20 @@ const Navbar = () => {
               `}
             >
               Dashboard Toko
+            </Link>
+          )}
+          {isLoggedIn && isOwner && (
+            <Link
+              to="/owner"
+              className={`px-4 py-2 font-medium transition border
+                ${
+                  isActive("/owner")
+                    ? "bg-[#1C5532] text-[#F5F5DC] border-[#1C5532] rounded-xl"
+                    : "bg-[#76AB51] text-[#1C5532] border-[#76AB51] hover:bg-[#1C5532] hover:text-[#F5F5DC] rounded-lg"
+                }
+              `}
+            >
+              Owner
             </Link>
           )}
           {isLoggedIn && (
@@ -212,6 +238,15 @@ const Navbar = () => {
               className={`w-full text-center px-4 py-2 font-medium transition border bg-[#76AB51] text-[#1C5532] border-[#76AB51] hover:bg-[#1C5532] hover:text-[#F5F5DC] rounded-lg`}
             >
               Dashboard Toko
+            </Link>
+          )}
+          {isLoggedIn && isOwner && (
+            <Link
+              to="/owner"
+              onClick={() => setMenuOpen(false)}
+              className={`w-full text-center px-4 py-2 font-medium transition border bg-[#76AB51] text-[#1C5532] border-[#76AB51] hover:bg-[#1C5532] hover:text-[#F5F5DC] rounded-lg`}
+            >
+              Owner
             </Link>
           )}
         </div>

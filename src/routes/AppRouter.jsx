@@ -8,6 +8,7 @@ import Register from "../pages/Register";
 import Profile from "../pages/Profile";
 import DashboardToko from "../pages/DashboardToko";
 import Cart from "../pages/cart";
+import Owner from "../pages/Owner";
 
 const AppRouter = () => (
   <Router>
@@ -21,6 +22,7 @@ const AppRouter = () => (
       <Route path="/profile" element={<Profile />} />
       <Route path="/dashboard-toko/:merchantId" element={<DashboardToko />} />
       <Route path="/cart" element={<Cart />} />
+       <Route path="/owner" element={<Owner />} />
     </Routes>
   </Router>
 );
