@@ -27,6 +27,7 @@ const Profile = () => {
     lat: "",
     lon: "",
     photo: null,
+    norek: "",
   });
   const [tokoError, setTokoError] = useState("");
   const [token, setToken] = useState("");
@@ -250,7 +251,8 @@ const Profile = () => {
         !tokoForm.name ||
         !tokoForm.category ||
         !tokoForm.lat ||
-        !tokoForm.lon
+        !tokoForm.lon ||
+        !tokoForm.norek
       ) {
         throw new Error("Semua field wajib diisi kecuali foto");
       }
@@ -261,6 +263,7 @@ const Profile = () => {
         lat: tokoForm.lat,
         lng: tokoForm.lon,
         photo: tokoForm.photo,
+        norek: tokoForm.norek,
       };
 
       console.log("Sending merchant data:", merchantData);
@@ -274,7 +277,7 @@ const Profile = () => {
         confirmButtonColor: "#15803d",
         confirmButtonText: "OK",
       }).then(() => {
-        setTokoForm({ name: "", category: "", lat: "", lon: "", photo: null });
+        setTokoForm({ name: "", category: "", lat: "", lon: "", photo: null, norek: "" });
         setShowAddToko(false);
         setHasStore(true);
 
@@ -516,6 +519,20 @@ const Profile = () => {
                       <option value="Rempah">Rempah</option>
                       <option value="Daging">Daging</option>
                     </select>
+                  </div>
+                  <div className="mb-2">
+                    <label className="block mb-1 font-medium text-sm">
+                      Nomor Rekening
+                    </label>
+                    <input
+                      type="text"
+                      name="norek"
+                      value={tokoForm.norek}
+                      onChange={handleTokoChange}
+                      required
+                      className="w-full border rounded px-2 py-1 text-sm bg-white text-black"
+                      placeholder="Masukkan nomor rekening"
+                    />
                   </div>
                   <div className="mb-2">
                     <label className="block mb-1 font-medium text-sm">

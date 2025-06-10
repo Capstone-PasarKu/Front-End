@@ -75,6 +75,7 @@ const DashboardToko = () => {
           id: foundMerchant.id,
           name: foundMerchant.name,
           category: foundMerchant.category,
+          norek: foundMerchant.norek || "Belum diisi",
         });
 
         const dashboardData = await getDashboardToko(token, id);
@@ -118,7 +119,7 @@ const DashboardToko = () => {
           totalRevenue: dashboardData.totalSales || 0,
           averageRating: 0,
         });
-        // Fetch messages with the updated function
+
         const messagesData = await getMessages(token, id);
         setMessages(messagesData);
       } catch (err) {
@@ -394,12 +395,11 @@ const DashboardToko = () => {
               <p className="text-gray-600">
                 {merchant?.category || "Kategori Kosong"}
               </p>
+              <p className="text-gray-600">
+                Nomor Rekening: {merchant?.norek || "Belum diisi"}
+              </p>
             </div>
             <div className="flex space-x-4">
-              {/* <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center">
-                <FiEdit2 className="mr-2" />
-                Edit Toko
-              </button> */}
               <Link
                 to={`/dashboard-toko/${id}/orders`}
                 className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center"
