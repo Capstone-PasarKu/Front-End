@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { FiTrash } from "react-icons/fi";
 import { getCart, updateCartItem, removeCartItem } from "../services/api";
+import { useNavigate } from "react-router-dom";
 
 const Cart = () => {
   const [cartItems, setCartItems] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [updatingItemId, setUpdatingItemId] = useState(null);
+  const navigate = useNavigate();
 
   const formatRupiah = (value) => {
     return value.toLocaleString("id-ID");
@@ -235,7 +237,7 @@ const Cart = () => {
           </p>
         </div>
         <button
-          onClick={() => alert("Fitur checkout coming soon!")}
+          onClick={() => navigate("/payment", { state: { cartItems } })}
           className="bg-[#1C5532] hover:bg-[#76AB51] text-[#F5F5DC] px-8 py-3 rounded-xl font-semibold text-lg shadow transition duration-300"
           disabled={loading}
         >

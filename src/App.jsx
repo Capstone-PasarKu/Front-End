@@ -13,6 +13,7 @@ import Products from "./pages/Products";
 import Footer from "./components/Footer";
 import DaftarPesanan from "./pages/DaftarPesanan";
 import Cart from "./pages/cart";
+import Payment from "./pages/Payment";
 
 function App() {
   return (
@@ -30,7 +31,8 @@ function App() {
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/products" element={<Products />} />
-          <Route path="/cart" element={<Cart/>} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/payment" element={<Payment />} />
 				{/* Tambah rute lain, misal /order, kalo perlu */}
         </Routes>
          
