@@ -416,6 +416,41 @@ export const sendMessage = async (token, { storeName, message }) => {
   return res.json();
 };
 
+export const getAllOrders = async (token) => {
+  const res = await fetch(`${API_URL}/owner/orders`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(
+      errorData.message || `Gagal mengambil daftar pesanan (HTTP ${res.status})`
+    );
+  }
+  return res.json();
+};
+
+// api.js
+export const UpdateStatusOwner = async (token, orderId, newStatus) => {
+  const res = await fetch(`${API_URL}/owner/order/${orderId}/status`, {
+    method: "PATCH",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ status: newStatus }),
+  });
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(
+      errorData.message || `Gagal mengubah status pesanan (HTTP ${res.status})`
+    );
+  }
+  return res.json();
+};
+
 
 export const getMessages = async (token, merchantId) => {
   const res = await fetch(`${API_URL}/merchant/messages?merchantId=${merchantId}`, {
