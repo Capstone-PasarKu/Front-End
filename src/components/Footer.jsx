@@ -6,7 +6,7 @@ const Footer = () => {
     <footer style={{ backgroundColor: '#F5F5DC', minHeight: '120px' }} className="w-full py-12 flex items-center">
       <div className="container mx-auto flex items-center justify-between w-full">
         <div className="flex items-center">
-          <img src={logo} alt="Logo" className="h-24 w-auto mr-8" />
+          <img src="https://res.cloudinary.com/dtaeoc9tu/image/upload/v1749661094/logo_tp_fjm6x5.png" alt="Logo" className="h-24 w-auto mr-8" />
           <div>
             <span className="text-2xl font-bold" style={{ color: '#14532d' }}>
               &copy; {new Date().getFullYear()} Pasarku. All rights reserved.

@@ -127,7 +127,7 @@ const Home = () => {
           <div className="flex flex-col md:flex-row items-center justify-center gap-8 max-w-4xl mx-auto">
             <div className="md:w-1/3 flex justify-center">
               <img
-                src="/src/assets/logo_tp.png"
+                src="https://res.cloudinary.com/dtaeoc9tu/image/upload/v1749661094/logo_tp_fjm6x5.png"
                 alt="Logo Pasarku"
                 className="w-45 h-40"
               />

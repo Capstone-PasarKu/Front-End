@@ -104,7 +104,7 @@ const Navbar = () => {
       <div className="container mx-auto flex justify-between items-center">
         <Link to="/" className="flex items-center space-x-3 group">
           <img
-            src="/src/assets/logo.jpeg"
+            src="https://res.cloudinary.com/dtaeoc9tu/image/upload/v1749661093/logo_qp2se4.jpg"
             alt="Logo Pasarku"
             className="w-10 h-10 rounded-full bg-white object-cover border-2 border-[#76AB51] shadow group-hover:scale-105 transition"
           />

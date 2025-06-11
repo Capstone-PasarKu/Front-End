@@ -34,7 +34,7 @@ const Login = () => {
       >
         <div className="flex flex-col items-center mb-6">
           <img
-            src="/src/assets/logo.jpeg"
+            src="https://res.cloudinary.com/dtaeoc9tu/image/upload/v1749661093/logo_qp2se4.jpg"
             alt="Logo"
             className="w-16 h-16 rounded-full mb-2 border-2 border-green-600 shadow"
           />

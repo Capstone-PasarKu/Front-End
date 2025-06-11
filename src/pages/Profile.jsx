@@ -18,7 +18,7 @@ const Profile = () => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [profileImage, setProfileImage] = useState("/src/assets/logo.jpeg");
+  const [profileImage, setProfileImage] = useState("https://res.cloudinary.com/dtaeoc9tu/image/upload/v1749661093/logo_qp2se4.jpg");
   const [showAddToko, setShowAddToko] = useState(false);
   const [hasStore, setHasStore] = useState(false);
   const [tokoForm, setTokoForm] = useState({
