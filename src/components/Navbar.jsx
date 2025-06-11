@@ -9,7 +9,7 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem("token"));
   const [merchantId, setMerchantId] = useState(null);
-  const [isOwner, setIsOwner] = useState(false); // New state for owner role
+  const [isOwner, setIsOwner] = useState(false); // State for owner role
 
   // Listen to storage event for login/logout from other tabs
   useEffect(() => {
@@ -78,15 +78,18 @@ const Navbar = () => {
     { to: "/contact", label: "Contact" },
   ];
 
-  // Links for logged in users, with Cart before Profile
+  // Links for logged-in users, with Cart, Order History, and Profile
   const loggedInLinks = [
     ...baseLinks,
     { to: "/quality-check", label: "Cek Kualitas" },
-    { to: "/cart", label: "Cart", icon: <FiShoppingCart className="w-5 h-5" /> },
+    ...(isLoggedIn && !isOwner
+      ? [{ to: "/order-history", label: "Order History" }]
+      : []),
+    { to: "/cart", label: "Cart", iconquiz: <FiShoppingCart className="w-5 h-5" /> },
     { to: "/profile", label: "Profile", icon: <FiUser className="w-5 h-5" /> },
   ];
 
-  // Links for non-logged in users
+  // Links for non-logged-in users
   const nonLoggedInLinks = [
     ...baseLinks,
     { to: "/login", label: "Login" },

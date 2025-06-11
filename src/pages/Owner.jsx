@@ -47,7 +47,7 @@ const Owner = () => {
     fetchOrders();
   }, [navigate]);
 
-  const handleStatusChange = async (orderId, newStatus, merchantId) => {
+  const handleStatusChange = async (orderId, newStatus) => {
     const orderToUpdate = orders.find((order) => order.id === orderId);
     if (!orderToUpdate) return;
 
@@ -97,8 +97,8 @@ const Owner = () => {
         confirmButtonColor: "#22c55e",
       });
 
-      // Redirect to the merchant's dashboard after setting to "pending"
-      navigate(`/dashboard-toko/${merchantId}`);
+      // Removed redirect to dashboard, stay on the same page
+      // navigate(`/dashboard-toko/${merchantId}`);
     } catch (err) {
       console.error("Error updating order status:", err.message, err.response?.data);
       await Swal.fire({
@@ -178,7 +178,7 @@ const Owner = () => {
                           order.status === "completed"
                             ? "bg-green-100 text-green-800"
                             : order.status === "pending"
-                            ? "bg-yellow-100 text-yellow-800"
+                            ? "bg-red-100 text-red-800"
                             : order.status === "shipped"
                             ? "bg-blue-100 text-blue-800"
                             : order.status === "konfirmasi pembayaran"

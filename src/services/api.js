@@ -170,6 +170,7 @@ export const createOrder = async (token, orderData) => {
 };
 
 export const getBuyerOrders = async (token) => {
+  console.log("Token:", token);
   const res = await fetch(`${API_URL}/order`, {
     method: "GET",
     headers: {

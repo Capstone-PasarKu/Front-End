@@ -15,6 +15,7 @@ import DaftarPesanan from "./pages/DaftarPesanan";
 import Cart from "./pages/cart";
 import Payment from "./pages/Payment";
 import Owner from "./pages/Owner";
+import OrderHistory from "./pages/OrderHistory";
 
 function App() {
   return (
@@ -34,7 +35,8 @@ function App() {
           <Route path="/products" element={<Products />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/payment" element={<Payment />} />
-           <Route path="/owner" element={<Owner />} />
+          <Route path="/owner" element={<Owner />} />
+          <Route path="/order-history" element={<OrderHistory />} />
 				{/* Tambah rute lain, misal /order, kalo perlu */}
         </Routes>
          
