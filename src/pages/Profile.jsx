@@ -38,7 +38,7 @@ const Profile = () => {
     const fetchProfile = async () => {
       const storedToken = localStorage.getItem("token");
       if (!storedToken) {
-        navigate("/login");
+        navigate("/");
         return;
       }
 
@@ -217,7 +217,7 @@ const Profile = () => {
   const handleLogout = () => {
     localStorage.removeItem("token");
     window.dispatchEvent(new Event("logout"));
-    navigate("/login");
+    navigate("/");
   };
 
   const handleImageChange = (e) => {
@@ -413,7 +413,7 @@ const Profile = () => {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                {/* <div className="flex items-center gap-3">
                   <FiKey className="w-6 h-6 text-green-600 flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm text-gray-500 mb-1">Token</p>
@@ -437,7 +437,7 @@ const Profile = () => {
                       </p>
                     )}
                   </div>
-                </div>
+                </div> */}
               </div>
 
               <div className="space-y-4">

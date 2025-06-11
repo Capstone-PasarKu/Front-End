@@ -18,7 +18,7 @@ const Login = () => {
     try {
       const res = await loginUser(email, password);
       localStorage.setItem("token", res.token);
-      navigate("/profile");
+      navigate("/");
       window.location.reload();
     } catch (err) {
       setError("Email atau password salah");
