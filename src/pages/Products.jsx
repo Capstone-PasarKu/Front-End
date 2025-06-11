@@ -33,7 +33,9 @@ const Products = () => {
         name: item.item.name,
         price: item.item.basePrice,
         image: item.item.photoUrl || "https://via.placeholder.com/150",
-        description: `Dijual oleh ${item.merchant?.name || item.merchantId || "-"} - Kategori: ${item.item.category}`,
+        description: `Dijual oleh ${
+          item.merchant?.name || item.merchantId || "-"
+        } - Kategori: ${item.item.category}`,
         itemCategory: item.item.category,
         merchantId: item.merchant?.id || item.merchantId, // Coba fallback ke item.merchantId
         seller: item.merchant?.name || item.merchantId || "-", // Coba fallback ke item.merchantId
@@ -59,7 +61,7 @@ const Products = () => {
     }, 500);
 
     return () => clearTimeout(timeout);
-  }, [searchQuery]);
+  }, [searchQuery, sortBy, category]); // Add sortBy and category as dependencies
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
@@ -99,7 +101,9 @@ const Products = () => {
       }
 
       if (!product.merchantId) {
-        setCartMessage("Gagal menambah ke keranjang: merchantId tidak ditemukan pada produk ini.");
+        setCartMessage(
+          "Gagal menambah ke keranjang: merchantId tidak ditemukan pada produk ini."
+        );
         setCartLoading(false);
         return;
       }

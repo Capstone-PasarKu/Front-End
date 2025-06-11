@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { FiArrowLeft } from "react-icons/fi";
+import { removeCartItem } from "../services/api";
 
 const Payment = () => {
   const { state } = useLocation();
@@ -278,8 +279,18 @@ const Payment = () => {
           .join(", ")}. Silakan coba lagi.`;
         throw new Error(errorMessage);
       }
-      
 
+      // Clear the cart by removing each item
+      for (const item of cartItems) {
+        try {
+          await removeCartItem(token, item.id);
+          console.log(`Successfully removed cart item ${item.id}`);
+        } catch (err) {
+          console.error(`Failed to remove cart item ${item.id}:`, err);
+          // Optionally, collect errors but don't block the process
+        }
+      }
+      
       alert("Semua item berhasil diproses!");
       setSelectedPayment(null);
       setSelectedShipping(null);
