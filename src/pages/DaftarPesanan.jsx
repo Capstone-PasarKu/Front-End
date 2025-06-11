@@ -32,43 +32,100 @@ const DaftarPesanan = () => {
   }, [id]);
 
   const handleStatusChange = async (orderId, newStatus) => {
-    const result = await Swal.fire({
-      title: "Konfirmasi",
-      text: `Apakah Anda yakin ingin mengubah status pesanan menjadi "${newStatus}"?`,
-      icon: "question",
-      showCancelButton: true,
-      confirmButtonColor: "#22c55e",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Ya, Ubah",
-      cancelButtonText: "Batal",
-    });
+    const orderToUpdate = orders.find((order) => order.id === orderId);
+    if (!orderToUpdate) return;
 
-    if (!result.isConfirmed) return;
-
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        throw new Error("Token tidak ditemukan. Silakan login kembali.");
-      }
-
-      await updateOrderStatus(token, orderId, newStatus);
-      setOrders(
-        orders.map((order) =>
-          order.id === orderId ? { ...order, status: newStatus } : order
-        )
-      );
-
-      await Swal.fire({
-        title: "Sukses",
-        text: "Status pesanan berhasil diperbarui",
-        icon: "success",
+    // Check if the current status is "konfirmasi pembayaran" and new status is "pending"
+    if (orderToUpdate.status === "konfirmasi pembayaran" && newStatus === "pending") {
+      const result = await Swal.fire({
+        title: "Konfirmasi",
+        text: `Apakah Anda yakin ingin mengubah status pesanan menjadi "${newStatus}"?`,
+        icon: "question",
+        showCancelButton: true,
         confirmButtonColor: "#22c55e",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Ya, Ubah",
+        cancelButtonText: "Batal",
       });
-    } catch (err) {
-      console.error("Error updating order status:", err);
+
+      if (!result.isConfirmed) return;
+
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          throw new Error("Token tidak ditemukan. Silakan login kembali.");
+        }
+
+        await updateOrderStatus(token, orderId, newStatus);
+        setOrders(
+          orders.map((order) =>
+            order.id === orderId ? { ...order, status: newStatus } : order
+          )
+        );
+
+        await Swal.fire({
+          title: "Sukses",
+          text: "Status pesanan berhasil diperbarui",
+          icon: "success",
+          confirmButtonColor: "#22c55e",
+        });
+      } catch (err) {
+        console.error("Error updating order status:", err);
+        await Swal.fire({
+          title: "Error",
+          text: "Gagal mengubah status pesanan: " + err.message,
+          icon: "error",
+          confirmButtonColor: "#22c55e",
+        });
+      }
+    } else if (orderToUpdate.status === "pending") {
+      // Allow changes only after status is changed to "pending"
+      const result = await Swal.fire({
+        title: "Konfirmasi",
+        text: `Apakah Anda yakin ingin mengubah status pesanan menjadi "${newStatus}"?`,
+        icon: "question",
+        showCancelButton: true,
+        confirmButtonColor: "#22c55e",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Ya, Ubah",
+        cancelButtonText: "Batal",
+      });
+
+      if (!result.isConfirmed) return;
+
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) {
+          throw new Error("Token tidak ditemukan. Silakan login kembali.");
+        }
+
+        await updateOrderStatus(token, orderId, newStatus);
+        setOrders(
+          orders.map((order) =>
+            order.id === orderId ? { ...order, status: newStatus } : order
+          )
+        );
+
+        await Swal.fire({
+          title: "Sukses",
+          text: "Status pesanan berhasil diperbarui",
+          icon: "success",
+          confirmButtonColor: "#22c55e",
+        });
+      } catch (err) {
+        console.error("Error updating order status:", err);
+        await Swal.fire({
+          title: "Error",
+          text: "Gagal mengubah status pesanan: " + err.message,
+          icon: "error",
+          confirmButtonColor: "#22c55e",
+        });
+      }
+    } else {
+      // Prevent changes if status is not "pending" and was not "konfirmasi pembayaran" to "pending"
       await Swal.fire({
         title: "Error",
-        text: "Gagal mengubah status pesanan: " + err.message,
+        text: "Status hanya dapat diubah setelah menjadi 'pending' atau dari 'konfirmasi pembayaran' ke 'pending'",
         icon: "error",
         confirmButtonColor: "#22c55e",
       });
@@ -146,6 +203,8 @@ const DaftarPesanan = () => {
                             ? "bg-yellow-100 text-yellow-800"
                             : order.status === "shipped"
                             ? "bg-blue-100 text-blue-800"
+                            : order.status === "konfirmasi pembayaran"
+                            ? "bg-red-100 text-red-800"
                             : "bg-red-100 text-red-800"
                         }`}
                       >
@@ -157,6 +216,7 @@ const DaftarPesanan = () => {
                         value={order.status}
                         onChange={(e) => handleStatusChange(order.id, e.target.value)}
                         className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-600 focus:ring focus:ring-green-600 focus:ring-opacity-50"
+                        disabled={order.status === "konfirmasi pembayaran"}
                       >
                         <option value="pending">Pending</option>
                         <option value="shipped">Shipped</option>
