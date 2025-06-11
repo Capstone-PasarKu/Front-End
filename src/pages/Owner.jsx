@@ -96,9 +96,6 @@ const Owner = () => {
         icon: "success",
         confirmButtonColor: "#22c55e",
       });
-
-      // Removed redirect to dashboard, stay on the same page
-      // navigate(`/dashboard-toko/${merchantId}`);
     } catch (err) {
       console.error("Error updating order status:", err.message, err.response?.data);
       await Swal.fire({
@@ -129,7 +126,7 @@ const Owner = () => {
   return (
     <div className="min-h-screen bg-[#F5F5DC] py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-2xl shadow-xl p-6" style={{ backgroundColor: "#fefcbf" }}>
+        <div className="bg-white rounded-2xl shadow-xl p-6" style={{ border: "2px solid #22c55e", backgroundColor: "white" }}>
           <h2 className="text-xl font-bold text-gray-900 mb-6">Daftar Semua Pesanan</h2>
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
@@ -146,6 +143,9 @@ const Owner = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Metode
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Bukti Pembayaran
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
@@ -173,6 +173,20 @@ const Owner = () => {
                       <div className="text-sm text-gray-500">{order.paymentMethod}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
+                      {order.paymentProof ? (
+                        <a
+                          href={order.paymentProof}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          Lihat Bukti
+                        </a>
+                      ) : (
+                        <span className="text-gray-500">Tidak ada</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                           order.status === "completed"
@@ -191,14 +205,16 @@ const Owner = () => {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       {order.status === "konfirmasi pembayaran" ? (
-                        <select
-                          value={order.status}
-                          onChange={(e) => handleStatusChange(order.id, e.target.value, order.merchantId)}
-                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-600 focus:ring focus:ring-green-600 focus:ring-opacity-50"
-                        >
-                          <option value="konfirmasi pembayaran">Konfirmasi Pembayaran</option>
-                          <option value="pending">Pending</option>
-                        </select>
+                        <div>
+                          <select
+                            value={order.status}
+                            onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-green-600 focus:ring focus:ring-green-600 focus:ring-opacity-50"
+                          >
+                            <option value="konfirmasi pembayaran">Konfirmasi Pembayaran</option>
+                            <option value="pending">Pending</option>
+                          </select>
+                        </div>
                       ) : (
                         <span className="text-gray-500">Tidak dapat diubah</span>
                       )}
