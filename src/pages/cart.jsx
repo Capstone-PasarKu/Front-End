@@ -21,6 +21,7 @@ const Cart = () => {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Token tidak ditemukan");
       const data = await getCart(token);
+      console.log("getCart API response:", JSON.parse(JSON.stringify(data))); // Log the response
       setCartItems(data);
     } catch (err) {
       console.error("Error fetching cart:", err);
@@ -138,7 +139,7 @@ const Cart = () => {
         <h2 className="text-2xl font-semibold text-gray-700 mb-4">
           Keranjang Kosong
         </h2>
-        <p className="text-gray-500">Ayo belanja buah segar hari ini!</p>
+        <p className="text-gray-500">Ayo belanja hari ini!</p>
       </div>
     );
   }

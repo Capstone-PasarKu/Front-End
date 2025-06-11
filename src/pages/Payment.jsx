@@ -14,6 +14,8 @@ const Payment = () => {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [paymentProof, setPaymentProof] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
 
   const formatRupiah = (value) => {
     return value.toLocaleString("id-ID");
@@ -26,13 +28,21 @@ const Payment = () => {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Token tidak ditemukan");
       const data = [
-        { id: 1, name: "Transfer Bank", fee: 0 },
-        { id: 2, name: "COD", fee: 0 },
+        {
+          id: 1,
+          name: "Transfer Bank", // Display name for user
+          value: "digital", // API value - this is what gets sent to the API
+          fee: 0,
+          bankAccount: "1234-5678-9012-3456 (Bank ABC)",
+        },
+        
       ];
       setPaymentMethods(data);
     } catch (err) {
       console.error("Error fetching payment methods:", err);
-      setError(`Gagal memuat metode pembayaran: ${err.message}. Silakan coba lagi.`);
+      setError(
+        `Gagal memuat metode pembayaran: ${err.message}. Silakan coba lagi.`
+      );
     } finally {
       setLoading(false);
     }
@@ -45,27 +55,44 @@ const Payment = () => {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Token tidak ditemukan");
       const data = [
-        { id: 1, name: "Ambil di Tempat", cost: 0, eta: "1-2 hari" },
-        { id: 2, name: "Diantar", cost: 0, eta: "1-2 hari" },
-        { id: 3, name: "GoSend Same Day", cost: 25000, eta: "Hari yang sama" },
+        {
+          id: 1,
+          name: "pickup",
+          cost: 0,
+          eta: "1-2 hari",
+          displayName: "Ambil di Tempat",
+        },
+        {
+          id: 2,
+          name: "delivery",
+          cost: 0,
+          eta: "1-2 hari",
+          displayName: "Pengiriman",
+        },
       ];
       setShippingMethods(data);
     } catch (err) {
       console.error("Error fetching shipping methods:", err);
-      setError(`Gagal memuat metode pengiriman: ${err.message}. Silakan coba lagi.`);
+      setError(
+        `Gagal memuat metode pengiriman: ${err.message}. Silakan coba lagi.`
+      );
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    console.log("cartItems in Payment:", JSON.parse(JSON.stringify(cartItems)));
     fetchPaymentMethods();
     fetchShippingMethods();
-  }, []);
+  }, [cartItems]);
 
-  const totalItem = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalItem = cartItems.reduce(
+    (sum, item) => sum + (item.quantity || 0),
+    0
+  );
   const totalHarga = cartItems.reduce(
-    (sum, item) => sum + item.item.basePrice * item.quantity,
+    (sum, item) => sum + (item.item?.basePrice || 0) * (item.quantity || 0),
     0
   );
   const shippingCost = selectedShipping?.cost || 0;
@@ -73,18 +100,93 @@ const Payment = () => {
   const grandTotal = totalHarga + shippingCost + paymentFee;
 
   const validateInputs = () => {
-    if (!selectedPayment || !selectedShipping) {
-      setError("Harap pilih metode pembayaran dan pengiriman.");
+    console.log(
+      "Validating inputs with cartItems:",
+      JSON.parse(JSON.stringify(cartItems))
+    );
+    if (!selectedPayment) {
+      setError("Harap pilih metode pembayaran.");
       return false;
     }
-    if (
-      (selectedShipping.name === "Diantar" || selectedShipping.name === "GoSend Same Day") &&
-      !shippingAddress.trim()
-    ) {
-      setError("Harap masukkan alamat pengiriman.");
+    if (!selectedShipping) {
+      setError("Harap pilih metode pengiriman.");
       return false;
     }
+    if (selectedShipping.name === "delivery" && !shippingAddress.trim()) {
+      setError("Harap masukkan alamat pengiriman untuk metode Pengiriman.");
+      return false;
+    }
+    // Fix: Change from selectedPayment.name to selectedPayment.value
+    if (selectedPayment.value === "digital" && !paymentProof) {
+      setError("Harap unggah bukti pembayaran untuk Transfer Bank.");
+      return false;
+    }
+    if (!cartItems || !cartItems.length) {
+      setError("Keranjang kosong. Silakan tambahkan item.");
+      console.error("Validation failed: Empty cartItems", { cartItems });
+      return false;
+    }
+
+    const invalidItem = cartItems.find((item) => {
+      const merchantId = item.merchantId;
+      const itemId = item.itemId;
+      const isInvalid =
+        !merchantId || !itemId || !item.quantity || item.quantity <= 0;
+      if (isInvalid) {
+        console.log("Invalid item detected:", {
+          item,
+          merchantId,
+          itemId,
+          quantity: item.quantity,
+        });
+      }
+      return isInvalid;
+    });
+    if (invalidItem) {
+      let errorMessage = "Data item tidak valid: ";
+      if (!invalidItem.merchantId) errorMessage += "ID merchant tidak ada. ";
+      if (!invalidItem.itemId) errorMessage += "ID item tidak ada. ";
+      if (!invalidItem.quantity || invalidItem.quantity <= 0)
+        errorMessage += "Kuantitas tidak valid. ";
+      errorMessage += "Silakan periksa keranjang Anda.";
+      setError(errorMessage);
+      console.error("Validation failed: Invalid item data", {
+        invalidItem,
+        cartItems: JSON.parse(JSON.stringify(cartItems)),
+      });
+      return false;
+    }
+
     return true;
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        setError("Harap unggah file berupa gambar (jpg, png, dll).");
+        setPaymentProof(null);
+        setPreviewUrl(null);
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        setError("Ukuran gambar terlalu besar. Maksimum 5MB.");
+        setPaymentProof(null);
+        setPreviewUrl(null);
+        return;
+      }
+      setPaymentProof(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      setError(null);
+    }
+  };
+
+  const removePaymentProof = () => {
+    setPaymentProof(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+    }
   };
 
   const handleConfirmPayment = async () => {
@@ -99,18 +201,113 @@ const Payment = () => {
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("Token tidak ditemukan");
-      // Placeholder API call for confirming payment
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulate API delay
-      navigate("/order-confirmation", {
-        state: { cartItems, selectedPayment, selectedShipping, shippingAddress, grandTotal },
-      });
+
+      const failedItems = [];
+
+      for (const item of cartItems) {
+        try {
+          const merchantId = item.merchantId;
+          const itemId = item.itemId;
+
+          if (!merchantId || !itemId) {
+            throw new Error("merchantId atau itemId tidak valid");
+          }
+
+          const formData = new FormData();
+          formData.append("merchantId", merchantId);
+          formData.append("itemId", itemId);
+          formData.append("quantity", item.quantity);
+          formData.append("deliveryMethod", selectedShipping.name);
+          formData.append("paymentMethod", selectedPayment.value);
+          formData.append("address", shippingAddress || "");
+
+          // Fix: Only append payment proof if it exists and payment method is digital
+          if (selectedPayment.value === "digital" && paymentProof) {
+            formData.append("paymentProof", paymentProof);
+          }
+
+          console.log("Sending order for item:", {
+            merchantId,
+            itemId,
+            quantity: item.quantity,
+            deliveryMethod: selectedShipping.name,
+            paymentMethod: selectedPayment.value, // Fix: log the correct value
+            address: shippingAddress,
+            hasPaymentProof: !!paymentProof,
+          });
+
+          const response = await fetch(
+            "https://pasarku-backend.vercel.app/api/order",
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+              body: formData,
+            }
+          );
+
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error("API error response:", errorData);
+            throw new Error(
+              errorData.message ||
+                `Gagal memproses item: ${item.item?.name || "Unknown"}`
+            );
+          }
+
+          const responseData = await response.json();
+          console.log("API success response:", responseData);
+        } catch (err) {
+          console.error(
+            `Error processing item ${item.item?.name || item.id}:`,
+            err
+          );
+          failedItems.push({
+            itemName: item.item?.name || item.id,
+            error: err.message,
+          });
+        }
+      }
+
+      if (failedItems.length > 0) {
+        const errorMessage = `Gagal memproses ${
+          failedItems.length
+        } item: ${failedItems
+          .map((fi) => `${fi.itemName} (${fi.error})`)
+          .join(", ")}. Silakan coba lagi.`;
+        throw new Error(errorMessage);
+      }
+      
+
+      alert("Semua item berhasil diproses!");
+      setSelectedPayment(null);
+      setSelectedShipping(null);
+      setShippingAddress("");
+      setCartItems([]);
+      setPaymentProof(null);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+        setPreviewUrl(null);
+      }
+      navigate("/cart");
     } catch (err) {
       console.error("Error confirming payment:", err);
-      setError(`Gagal memproses pembayaran: ${err.message}. Silakan coba lagi.`);
+      setError(
+        `Gagal memproses pembayaran: ${err.message}. Silakan coba lagi.`
+      );
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
   if (loading) {
     return (
@@ -126,7 +323,9 @@ const Payment = () => {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#F5F5DC] px-4">
-        <p className="text-red-600 text-lg font-semibold bg-red-50 p-4 rounded-xl shadow-md">{error}</p>
+        <p className="text-red-600 text-lg font-semibold bg-red-50 p-4 rounded-xl shadow-md">
+          {error}
+        </p>
         <button
           onClick={() => {
             setError(null);
@@ -144,8 +343,12 @@ const Payment = () => {
   if (!cartItems.length) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-[#F5F5DC] px-4">
-        <h2 className="text-3xl font-bold text-[#1C5532] mb-4">Tidak Ada Item untuk Diproses</h2>
-        <p className="text-gray-600 mb-6">Kembali ke keranjang untuk menambahkan item.</p>
+        <h2 className="text-3xl font-bold text-[#1C5532] mb-4">
+          Tidak Ada Item untuk Diproses
+        </h2>
+        <p className="text-gray-600 mb-6">
+          Kembali ke keranjang untuk menambahkan item.
+        </p>
         <button
           onClick={() => navigate("/cart")}
           className="bg-[#1C5532] hover:bg-[#76AB51] text-[#F5F5DC] px-6 py-3 rounded-xl font-semibold shadow transition duration-300"
@@ -172,9 +375,10 @@ const Payment = () => {
           Halaman Pembayaran
         </h2>
         <div className="grid grid-cols-1 gap-6">
-          {/* Order Summary */}
           <div className="bg-white p-6 rounded-2xl shadow-lg border border-[#76AB51]/20">
-            <h3 className="text-xl font-bold text-[#1C5532] mb-4">Ringkasan Pesanan</h3>
+            <h3 className="text-xl font-bold text-[#1C5532] mb-4">
+              Ringkasan Pesanan
+            </h3>
             {cartItems.map((item) => (
               <div
                 key={item.id}
@@ -182,28 +386,36 @@ const Payment = () => {
               >
                 <div className="flex items-center space-x-4">
                   <img
-                    src={item.item.photoUrl || "https://via.placeholder.com/80"}
-                    alt={item.item.name}
+                    src={
+                      item.item?.photoUrl || "https://via.placeholder.com/80"
+                    }
+                    alt={item.item?.name || "Item"}
                     className="w-16 h-16 object-cover rounded-lg border border-[#76AB51]/20"
                   />
                   <div>
                     <p className="text-gray-800 font-semibold">
-                      {item.item.name} (x{item.quantity})
+                      {item.item?.name || "N/A"} (x{item.quantity || 0})
                     </p>
-                    <p className="text-sm text-gray-500">Toko: {item.merchant?.name || "N/A"}</p>
+                    <p className="text-sm text-gray-500">
+                      Toko: {item.merchant?.name || "N/A"}
+                    </p>
                   </div>
                 </div>
                 <p className="font-semibold text-[#1C5532]">
-                  Rp{formatRupiah(item.item.basePrice * item.quantity)}
+                  Rp
+                  {formatRupiah(
+                    (item.item?.basePrice || 0) * (item.quantity || 0)
+                  )}
                 </p>
               </div>
             ))}
           </div>
 
-          {/* Shipping Address */}
-          {(selectedShipping?.name === "Diantar" || selectedShipping?.name === "GoSend Same Day") && (
+          {selectedShipping?.name === "delivery" && (
             <div className="bg-white p-6 rounded-2xl shadow-lg border border-[#76AB51]/20">
-              <h3 className="text-xl font-bold text-[#1C5532] mb-4">Alamat Pengiriman</h3>
+              <h3 className="text-xl font-bold text-[#1C5532] mb-4">
+                Alamat Pengiriman
+              </h3>
               <textarea
                 value={shippingAddress}
                 onChange={(e) => setShippingAddress(e.target.value)}
@@ -214,9 +426,10 @@ const Payment = () => {
             </div>
           )}
 
-          {/* Payment Methods */}
           <div className="bg-white p-6 rounded-2xl shadow-lg border border-[#76AB51]/20">
-            <h3 className="text-xl font-bold text-[#1C5532] mb-4">Metode Pembayaran</h3>
+            <h3 className="text-xl font-bold text-[#1C5532] mb-4">
+              Metode Pembayaran
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {paymentMethods.map((method) => (
                 <button
@@ -233,14 +446,20 @@ const Payment = () => {
                   <p className="text-sm text-gray-500">
                     Biaya: Rp{formatRupiah(method.fee)}
                   </p>
+                  {method.bankAccount && (
+                    <p className="text-sm text-gray-500">
+                      No. Rekening: {method.bankAccount}
+                    </p>
+                  )}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Shipping Methods */}
           <div className="bg-white p-6 rounded-2xl shadow-lg border border-[#76AB51]/20">
-            <h3 className="text-xl font-bold text-[#1C5532] mb-4">Metode Pengiriman</h3>
+            <h3 className="text-xl font-bold text-[#1C5532] mb-4">
+              Metode Pengiriman
+            </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {shippingMethods.map((method) => (
                 <button
@@ -253,56 +472,90 @@ const Payment = () => {
                   }`}
                   disabled={loading}
                 >
-                  <p className="font-semibold text-[#1C5532]">{method.name}</p>
-                  <p className="text-sm text-gray-500">
-                    Biaya: Rp{formatRupiah(method.cost)}
+                  <p className="font-semibold text-[#1C5532]">
+                    {method.displayName}
                   </p>
-                  <p className="text-sm text-gray-500">Estimasi: {method.eta}</p>
+                  <p className="text-sm text-gray-500">
+                    Estimasi: {method.eta} | Biaya: Rp
+                    {formatRupiah(method.cost)}
+                  </p>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Total Summary and Confirm Payment */}
           <div className="bg-white p-6 rounded-2xl shadow-lg border border-[#76AB51]/20">
-            <h3 className="text-xl font-bold text-[#1C5532] mb-4">Total Harga</h3>
-            <div className="space-y-2">
-              <p className="flex justify-between text-gray-700">
-                <span>Total Item:</span>
-                <span className="font-semibold text-[#1C5532]">{totalItem}</span>
-              </p>
-              <p className="flex justify-between text-gray-700">
-                <span>Total Harga Barang:</span>
-                <span className="font-semibold text-[#1C5532]">
-                  Rp{formatRupiah(totalHarga)}
-                </span>
-              </p>
-              <p className="flex justify-between text-gray-700">
-                <span>Biaya Pengiriman:</span>
-                <span className="font-semibold text-[#1C5532]">
-                  Rp{formatRupiah(shippingCost)}
-                </span>
-              </p>
-              <p className="flex justify-between text-gray-700">
-                <span>Biaya Pembayaran:</span>
-                <span className="font-semibold text-[#1C5532]">
-                  Rp{formatRupiah(paymentFee)}
-                </span>
-              </p>
-              <p className="flex justify-between text-lg font-bold text-[#76AB51] pt-2 border-t border-[#76AB51]/20">
-                <span>Grand Total:</span>
+            <h3 className="text-xl font-bold text-[#1C5532] mb-4">
+              Total Pembayaran
+            </h3>
+            <div className="space-y-2 text-gray-700">
+              <div className="flex justify-between">
+                <span>Total Harga ({totalItem} item)</span>
+                <span>Rp{formatRupiah(totalHarga)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Biaya Pengiriman</span>
+                <span>Rp{formatRupiah(shippingCost)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Biaya Pembayaran</span>
+                <span>Rp{formatRupiah(paymentFee)}</span>
+              </div>
+              <div className="border-t pt-2 flex justify-between font-semibold text-[#1C5532] text-lg">
+                <span>Grand Total</span>
                 <span>Rp{formatRupiah(grandTotal)}</span>
-              </p>
+              </div>
             </div>
+
+            {selectedPayment?.value === "digital" && (
+              <div className="mt-6">
+                <label className="block text-sm font-semibold text-[#1C5532] mb-2">
+                  Unggah Bukti Pembayaran
+                </label>
+                <div className="flex items-center space-x-4">
+                  <label className="cursor-pointer bg-[#76AB51] text-[#F5F5DC] px-4 py-2 rounded-xl font-semibold hover:bg-[#1C5532] transition duration-300">
+                    Pilih Gambar
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  {paymentProof && (
+                    <span className="text-sm text-gray-600">
+                      {paymentProof.name}
+                    </span>
+                  )}
+                </div>
+                {previewUrl && (
+                  <div className="mt-4 relative">
+                    <img
+                      src={previewUrl}
+                      alt="Bukti Pembayaran"
+                      className="w-48 h-48 object-contain rounded-lg border border-[#76AB51]/20"
+                    />
+                    <button
+                      onClick={removePaymentProof}
+                      className="absolute top-2 right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-600 transition duration-300"
+                    >
+                      ×
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               onClick={handleConfirmPayment}
-              className="w-full mt-6 bg-[#1C5532] hover:bg-[#76AB51] text-[#F5F5DC] px-8 py-3 rounded-xl font-semibold text-lg shadow-lg transition duration-300 transform hover:scale-105 disabled:opacity-50"
+              className="w-full mt-6 bg-[#1C5532] hover:bg-[#76AB51] text-[#F5F5DC] py-3 rounded-xl font-semibold shadow transition duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
               disabled={
                 loading ||
                 !selectedPayment ||
                 !selectedShipping ||
-                ((selectedShipping?.name === "Diantar" || selectedShipping?.name === "GoSend Same Day") &&
-                  !shippingAddress.trim())
+                (selectedShipping?.name === "delivery" &&
+                  !shippingAddress.trim()) ||
+                (selectedPayment?.value === "digital" && !paymentProof) // Fix: Change && to && and use correct condition
               }
             >
               Konfirmasi Pembayaran
@@ -311,32 +564,52 @@ const Payment = () => {
         </div>
       </div>
 
-      {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-2xl shadow-2xl max-w-md w-full">
-            <h3 className="text-xl font-bold text-[#1C5532] mb-4">Konfirmasi Pembayaran</h3>
-            <p className="text-gray-600 mb-6">
-              Apakah Anda yakin ingin melanjutkan pembayaran sebesar{" "}
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-md text-center">
+            <h3 className="text-2xl font-bold text-[#1C5532] mb-4">
+              Konfirmasi Pembayaran
+            </h3>
+            <p className="text-gray-700 mb-6">
+              Apakah Anda yakin melanjutkan pembayaran sebesar{" "}
               <span className="font-semibold text-[#76AB51]">
                 Rp{formatRupiah(grandTotal)}
               </span>{" "}
               dengan metode pembayaran{" "}
-              <span className="font-semibold">{selectedPayment.name}</span> dan pengiriman{" "}
-              <span className="font-semibold">{selectedShipping.name}</span>?
+              <span className="font-semibold">
+                {selectedPayment?.name || "N/A"}
+              </span>{" "}
+              dan pengiriman{" "}
+              <span className="font-semibold">
+                {selectedShipping?.displayName || "N/A"}
+              </span>
+              ?
             </p>
-            <div className="flex justify-end space-x-4">
+            {previewUrl &&
+              selectedPayment?.value === "digital" && ( // Fix: Use value instead of name
+                <div className="mb-4">
+                  <p className="text-sm text-gray-600 mb-2">
+                    Bukti Pembayaran:
+                  </p>
+                  <img
+                    src={previewUrl}
+                    alt="Bukti Pembayaran"
+                    className="w-32 h-32 object-contain mx-auto rounded-lg border border-[#76AB51]/20"
+                  />
+                </div>
+              )}
+            <div className="flex justify-center gap-4">
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-300 transition duration-300"
+                className="px-6 py-2 bg-gray-300 hover:bg-gray-400 rounded-xl font-semibold transition duration-300"
               >
                 Batal
               </button>
               <button
                 onClick={handleConfirmModal}
-                className="px-4 py-2 bg-[#1C5532] text-[#F5F5DC] rounded-xl font-semibold hover:bg-[#76AB51] transition duration-300"
+                className="px-6 py-2 bg-[#1C5532] hover:bg-[#76AB51] text-[#F5F5DC] rounded-xl font-semibold transition duration-300"
               >
-                Konfirmasi
+                Ya, Lanjutkan
               </button>
             </div>
           </div>
